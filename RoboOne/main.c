@@ -20,15 +20,18 @@
  * Distance?
  * Velocity?
  * Progress?
+ * Echo
  *
  * Commands can be single letters, we only look for a numeric character, Forwards and
  * Backwards can be in units of metres or metres per second, turns can be 90 degrees
  * or a deviation in degrees, Mark will set the zero point and Distance? reads
  * the distance travelled since the last mark.  Home is the "return to charger"
  * command and only works if the robot is in sight of the charger. Progress?
- * reports what the robot is currently doing.  If a command is prefixed by # and
- * a number then the responses from the controller are prefixed with the same
- * tag (so that sequences of commands can be sent and the responses matched up).
+ * reports what the robot is currently doing.  Echo is used purely for testing and
+ * causes every received command to be echoed without action (until reset). If a
+ * command is prefixed by # and a number then the responses from the controller are
+ * prefixed with the same tag (so that sequences of commands can be sent and the
+ * responses matched up).
  *
  * The main responses sent for each command are:
  *
@@ -54,6 +57,11 @@
 #include <stdio.h>
 #include <rob_system.h>
 #include <rob_comms.h>
+#include <rob_processing.h>
+
+#include <FreeRTOS.h>
+#include <task.h>
+#include <queue.h>
 
 #define COMMAND_LIST_SIZE 4
 #define HELLO_STRING "RoboOne at your service.\r\n"
@@ -61,17 +69,28 @@
 
          char *pCommandStringList[COMMAND_LIST_SIZE]; /* List of pointers to malloced strings containing received commands */
 unsigned char nextCommandString = 0;
-CodedCommand codedCommandList[COMMAND_LIST_SIZE];  /* An array of coded command buffers */
+CodedCommand  codedCommandList[COMMAND_LIST_SIZE];  /* An array of coded command buffers */
 unsigned char nextCodedCommand = 0;
+
+/* - TASKING FUNCTIONS ---------------------------------------------------------------- */
+
+/* Task that handles comms IO */
+static portTASK_FUNCTION_PROTO (vCommsIO, pvParameters);
+
+/* Task that handles generic processing functions */
+static portTASK_FUNCTION_PROTO (vProcessing, pvParameters);
+
+/* Task that motion control functions */
+static portTASK_FUNCTION_PROTO (vMove, pvParameters);
 
 /* - STATIC FUNCTIONS ----------------------------------------------------------------- */
 
 /* One-time initialisation */
-void startStuff (void)
+static void startStuff (void)
 {
     unsigned char x;
 
-	play_from_program_space (PSTR(HELLO_TUNE));  /* Play welcoming notes. */
+	play_from_program_space (PSTR(HELLO_TUNE));  /* Play welcoming notes */
     lcd_init_printf();
     clear();
 
@@ -82,8 +101,8 @@ void startStuff (void)
         pCommandStringList[x] = PNULL;
     }
 
-   /* Say hello */
-   serial_send (USB_COMM, HELLO_STRING, strlen(HELLO_STRING));
+    /* Say hello */
+    serial_send (USB_COMM, HELLO_STRING, strlen(HELLO_STRING));
 }
 
 /* - PUBLIC FUNCTIONS ----------------------------------------------------------------- */
@@ -91,6 +110,7 @@ void startStuff (void)
 int main()
 {
     bool success = true;
+    bool echo = false;
 
     startStuff();
 
@@ -103,23 +123,34 @@ int main()
         if (success && pCommandStringList[nextCommandString] != PNULL)
         {
             printf ("Received: %s\n", pCommandStringList[nextCommandString]);
-            if (processCommand (pCommandStringList[nextCommandString], &codedCommandList[nextCommandString]))
+            if (!echo)
             {
-                printf ("OK: #%d %c %d", codedCommandList[nextCommandString].buffer[CODED_COMMAND_INDEX_POS], codedCommandList[nextCommandString].buffer[CODED_COMMAND_ID_POS], (((unsigned int) codedCommandList[nextCommandString].buffer[CODED_COMMAND_VALUE_POS]) << 8) + codedCommandList[nextCommandString].buffer[CODED_COMMAND_VALUE_POS + 1]);
-                if (codedCommandList[nextCommandString].buffer[CODED_COMMAND_UNITS_POS] != 0)
+                if (processCommand (pCommandStringList[nextCommandString], &codedCommandList[nextCommandString]))
                 {
-                    printf (" %c", codedCommandList[nextCommandString].buffer[CODED_COMMAND_UNITS_POS]);
+                    printf ("OK: #%d %c %d", codedCommandList[nextCommandString].buffer[CODED_COMMAND_INDEX_POS], codedCommandList[nextCommandString].buffer[CODED_COMMAND_ID_POS], (((unsigned int) codedCommandList[nextCommandString].buffer[CODED_COMMAND_VALUE_POS]) << 8) + codedCommandList[nextCommandString].buffer[CODED_COMMAND_VALUE_POS + 1]);
+                    if (codedCommandList[nextCommandString].buffer[CODED_COMMAND_UNITS_POS] != 0)
+                    {
+                        printf (" %c", codedCommandList[nextCommandString].buffer[CODED_COMMAND_UNITS_POS]);
+                    }
+                    if (codedCommandList[nextCommandString].buffer[CODED_COMMAND_ID_POS] == 'E')
+                    {
+                        echo = true;
+                    }
                 }
+                else
+                {
+                    printf ("Bad command");
+                }
+                printf ("\n");
+                
+                free (pCommandStringList[nextCommandString]);
+                pCommandStringList[nextCommandString] = PNULL;
             }
             else
             {
-                printf ("Bad command");
+                sendSerialString (&pCommandStringList[nextCommandString]); /* This handles the freeing of the entry by itself */
             }
-            printf ("\n");
-
-            free (pCommandStringList[nextCommandString]);
-            pCommandStringList[nextCommandString] = PNULL;
-
+            
             nextCommandString++;
             if (nextCommandString >= COMMAND_LIST_SIZE)
             {
