@@ -19,8 +19,8 @@
 #define NUM_BYTES_FROM_RECEIVE_RING(nEWpOS, oLDpOS) ((nEWpOS) >= (oLDpOS) ?  ((nEWpOS) - (oLDpOS)) : (sizeof (uartReceiveBuffer) - (oLDpOS) + (nEWpOS)))
 #define COMMAND_TERMINATOR '\r'
 
-unsigned char uartSendBuffer[32];
-         char uartReceiveBuffer[32]; /* not more than 256, must be bigger than the longest command */
+unsigned char uartSendBuffer[128];
+         char uartReceiveBuffer[128]; /* not more than 256, must be bigger than the longest command */
 unsigned char uartReceiveBufferPos = 0;
 unsigned char uartNextCommandStartPos = 0;
 
@@ -34,7 +34,7 @@ void commsInit (void)
     serial_set_baud_rate (USB_COMM, SERIAL_BAUD_RATE);
 
     memset (uartReceiveBuffer, 0, sizeof (uartReceiveBuffer));
-    serial_receive_ring (USB_COMM, uartReceiveBuffer, sizeof (uartReceiveBuffer));    
+    serial_receive_ring (USB_COMM, uartReceiveBuffer, sizeof (uartReceiveBuffer));
 }
 
 /* Look for a command in the receive buffer. */
@@ -75,14 +75,14 @@ bool receiveSerialCommand (char **pCommandStringStore)
                         if (writePos > 0)
                         {
                             writePos--;
-                        }                        
+                        }
                     }
                     else
                     {
                         *(*pCommandStringStore + writePos) = uartReceiveBuffer[uartNextCommandStartPos];
                         writePos++;
                     }
-                    
+
                     uartNextCommandStartPos++;
                     if (uartNextCommandStartPos >= sizeof (uartReceiveBuffer))
                     {
@@ -105,7 +105,7 @@ bool receiveSerialCommand (char **pCommandStringStore)
 
 /* Send a string over the USB_COMM port. */
 /* Takes as an argument a pointer to a pointer to a malloc'ed buffer containing the null-terminated string
- * to be sent.  Once the string has been sent the buffer will be freed and the pointer set
+ * to be sent ('\r' added).  Once the string has been sent the buffer will be freed and the pointer set
  * to PNULL the next time this function is called.  If you want the buffer freed sooner
  * just call this function again with PNULL as the argument.
  */
@@ -129,7 +129,11 @@ void sendSerialString (char **pSendString)
     /* Do the sending thang, if we've been given something to send */
     if (pSendString != PNULL)
     {
+        unsigned char bytesToSend;
+
+        bytesToSend = strlen (*pSendString) + 1; /* strlen() doesn't include the terminator and we need to re-use it */
         pMallocToFree = pSendString; /* Store the pointer to a pointer passed in into our local static variable */
-        serial_send (USB_COMM, *pSendString, strlen (*pSendString));
+        (*pSendString)[bytesToSend - 1] = '\r'; /* Add a terminator that makes sense to a PC */
+        serial_send (USB_COMM, *pSendString, bytesToSend);
     }
 }

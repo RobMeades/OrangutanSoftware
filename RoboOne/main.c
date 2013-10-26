@@ -122,7 +122,7 @@ int main()
         success = receiveSerialCommand (&pCommandStringList[nextCommandString]);
         if (success && pCommandStringList[nextCommandString] != PNULL)
         {
-            printf ("Received: %s\n", pCommandStringList[nextCommandString]);
+            //printf ("Received: %s\n", pCommandStringList[nextCommandString]);
             if (!echo)
             {
                 if (processCommand (pCommandStringList[nextCommandString], &codedCommandList[nextCommandString]))
@@ -142,7 +142,7 @@ int main()
                     printf ("Bad command");
                 }
                 printf ("\n");
-                
+
                 free (pCommandStringList[nextCommandString]);
                 pCommandStringList[nextCommandString] = PNULL;
             }
@@ -150,7 +150,7 @@ int main()
             {
                 sendSerialString (&pCommandStringList[nextCommandString]); /* This handles the freeing of the entry by itself */
             }
-            
+
             nextCommandString++;
             if (nextCommandString >= COMMAND_LIST_SIZE)
             {
