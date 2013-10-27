@@ -15,7 +15,7 @@
 #include <rob_system.h>
 #include <rob_comms.h>
 
-#define SERIAL_BAUD_RATE 128000
+#define SERIAL_BAUD_RATE 28800
 #define NUM_BYTES_FROM_RECEIVE_RING(nEWpOS, oLDpOS) ((nEWpOS) >= (oLDpOS) ?  ((nEWpOS) - (oLDpOS)) : (sizeof (uartReceiveBuffer) - (oLDpOS) + (nEWpOS)))
 #define COMMAND_TERMINATOR '\r'
 
