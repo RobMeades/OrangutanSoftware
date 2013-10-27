@@ -1,24 +1,48 @@
-/* Rob's system level funcs - an application for the Pololu Orangutan X2
+/* freeRTOS - an application for the Pololu Orangutan X2
  *
  * This application uses the Pololu AVR C/C++ Library.  For help, see:
  * -User's guide: http://www.pololu.com/docs/0J20
  * -Command reference: http://www.pololu.com/docs/0J18
  *
- * Created: 10/14/2013 7:10:02 PM
+ * Created: 10/22/2013 8:11:21 PM
  *  Author: Rob Meades
  */
 
 #include <pololu/orangutan.h>
-#include <stdlib.h>
-#include <string.h>
+#include <FreeRTOS.h>
+#include <task.h>
+#include <queue.h>
+
+#include <BlockQ.h>
+
 #include <stdio.h>
-#include <rob_system.h>
+#include <stdbool.h>
 
 #define ASSERT_TUNE "!L16 V8 dc#"
 
-/* - STATIC FUNCTIONS ----------------------------------------------------------------- */
 
-/* - PUBLIC FUNCTIONS ----------------------------------------------------------------- */
+int main()
+{
+    lcd_init_printf();
+    clear();
+	play_from_program_space(PSTR(">g32>>c32"));  // Play welcoming notes.
+
+	while(1)
+	{
+		clear();
+
+        vStartBlockingQueueTasks(10);
+
+        vTaskStartScheduler();
+        return 0;
+	}
+}
+
+void vApplicationStackOverflowHook (xTaskHandle taskHandle, char * name)
+{
+    printf ("Stack in %s overflowed", name);
+    while (1);
+}
 
 /* Stuff to do when exiting */
 void endStuff (void)

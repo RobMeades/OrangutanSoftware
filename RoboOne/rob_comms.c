@@ -15,6 +15,10 @@
 #include <rob_system.h>
 #include <rob_comms.h>
 
+#include <FreeRTOS.h>
+#include <task.h>
+#include <queue.h>
+
 #define SERIAL_BAUD_RATE 28800
 #define NUM_BYTES_FROM_RECEIVE_RING(nEWpOS, oLDpOS) ((nEWpOS) >= (oLDpOS) ?  ((nEWpOS) - (oLDpOS)) : (sizeof (uartReceiveBuffer) - (oLDpOS) + (nEWpOS)))
 #define COMMAND_TERMINATOR '\r'
@@ -28,6 +32,37 @@ unsigned char uartNextCommandStartPos = 0;
 
 /* - PUBLIC FUNCTIONS ----------------------------------------------------------------- */
 
+/* The queue that the comms task uses */
+extern xQueueHandle xCommsReceiveQueue;
+
+/* The Comms IO task */
+void vTaskCommsIO (void *pvParameters)
+{
+    CommandString * pCommandString;
+    portBASE_TYPE xStatus;
+
+    while (1)
+    {
+endStuff();
+while (1);
+        /* Check for things going on on the USB interface (no interrupts there) */
+        serial_check();
+
+        /* Look for a command and add it to the queue if there is one */
+        pCommandString = receiveSerialCommand();
+
+        if (pCommandString != PNULL)
+        {
+            printf ("Received: %s\n", pCommandString);
+            xStatus = xQueueSend (xCommsReceiveQueue, &pCommandString, 0);
+            ASSERT_STRING (xStatus != pdPASS, "Failed to send to comms queue.");
+        }
+
+        /* Let other tasks run */
+        taskYIELD();
+    }
+}
+
 /* Initialisation */
 void commsInit (void)
 {
@@ -38,22 +73,19 @@ void commsInit (void)
 }
 
 /* Look for a command in the receive buffer. */
-/* Takes as an argument a pointer to a pointer where the address of a malloc'ed command string will be stored if
- * a command (terminated by COMMAND_TERMINATOR) is found in the buffer.  The pointer should be passed in as PNULL
- * so that it can be tested on return.  uartReceiveBufferPos and, if a command is found, uartNexCommandStartPost
- * are moved on by this function.
- * Return: success unless a command has been found and there has also been a malloc() failure, in which case false.
+/* Returns a pointer to a malloc'ed command string if a command (terminated by COMMAND_TERMINATOR)
+ * is found in the buffer, otherwise PNULL.  uartReceiveBufferPos and, if a command is found,
+ * uartNexCommandStartPost are moved on by this function.
  */
-bool receiveSerialCommand (char **pCommandStringStore)
+CommandString * receiveSerialCommand (void)
 {
     unsigned char newBufferPos;
     unsigned char numRxBytes;
     unsigned char x;
+    CommandString * pCommandString = PNULL;
     bool success = true;
 
-    ASSERT (*pCommandStringStore == PNULL, "Rx command store in use.");
-
-    newBufferPos = serial_get_received_bytes(USB_COMM);
+    newBufferPos = serial_get_received_bytes (USB_COMM);
     numRxBytes = NUM_BYTES_FROM_RECEIVE_RING (newBufferPos, uartReceiveBufferPos);
 
     for (x = 0; success && x < numRxBytes; x++)
@@ -63,11 +95,13 @@ bool receiveSerialCommand (char **pCommandStringStore)
             unsigned char commandStringLen;
 
             commandStringLen = NUM_BYTES_FROM_RECEIVE_RING ((uartReceiveBufferPos + x) % sizeof (uartReceiveBuffer), uartNextCommandStartPos) + 1; /* +1 'cos uartNextCommandStartPos was already at character 1 */
-            *pCommandStringStore = malloc (commandStringLen);
-            if (*pCommandStringStore)
+            pCommandString = malloc (commandStringLen);
+            ASSERT_PARAM (pCommandString, commandStringLen);
+            if (pCommandString)
             {
                 unsigned char y;
                 unsigned char writePos = 0;
+
                 for (y = 0; y < commandStringLen; y++)
                 {
                     if (uartReceiveBuffer[uartNextCommandStartPos] == '\b') /* handle backspace */
@@ -79,7 +113,7 @@ bool receiveSerialCommand (char **pCommandStringStore)
                     }
                     else
                     {
-                        *(*pCommandStringStore + writePos) = uartReceiveBuffer[uartNextCommandStartPos];
+                        *(pCommandString + writePos) = uartReceiveBuffer[uartNextCommandStartPos];
                         writePos++;
                     }
 
@@ -89,7 +123,7 @@ bool receiveSerialCommand (char **pCommandStringStore)
                         uartNextCommandStartPos = 0;
                     }
                 }
-                *(*pCommandStringStore + writePos - 1) = 0; /* Make the terminator a null */
+                *(pCommandString + writePos - 1) = 0; /* Make the terminator a null */
             }
             else
             {
@@ -100,7 +134,7 @@ bool receiveSerialCommand (char **pCommandStringStore)
 
     uartReceiveBufferPos = newBufferPos;
 
-    return success;
+    return pCommandString;
 }
 
 /* Send a string over the USB_COMM port. */
@@ -131,9 +165,9 @@ void sendSerialString (char **pSendString)
     {
         unsigned char bytesToSend;
 
-        bytesToSend = strlen (*pSendString) + 1; /* strlen() doesn't include the terminator and we need to re-use it */
+        bytesToSend = strlen (*pSendString) + 1; /* +1 becasue strlen() doesn't include the terminator and we need to send it */
         pMallocToFree = pSendString; /* Store the pointer to a pointer passed in into our local static variable */
-        (*pSendString)[bytesToSend - 1] = '\r'; /* Add a terminator that makes sense to a PC */
+        (*pSendString)[bytesToSend - 1] = '\r'; /* Replace the null terminator with a terminator that makes sense to a PC comms handler*/
         serial_send (USB_COMM, *pSendString, bytesToSend);
     }
 }
