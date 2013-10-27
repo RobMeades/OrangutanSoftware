@@ -142,6 +142,9 @@
     <Compile Include="list.c">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="port.c">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="queue.c">
       <SubType>compile</SubType>
     </Compile>
