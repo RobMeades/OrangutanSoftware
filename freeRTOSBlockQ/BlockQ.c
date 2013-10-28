@@ -243,12 +243,11 @@ short sErrorEverOccurred = pdFALSE;
 			/* Increment the variable we are going to post next time round.  The
 			consumer will expect the numbers to	follow in numerical order. */
 			++usValue;
-                play_from_program_space(PSTR("d"));
-                while (is_playing()){};
-
-		red_led(1);     // Turn on the red LED.
-		delay_ms(200);  // Wait for 200 ms.
-
+            
+            play_from_program_space(PSTR("d"));
+            while (is_playing()){};
+    		red_led(1);     // Turn on the red LED.
+	    	delay_ms(20);  // Wait for 20 ms.
 		}
 	}
 }
@@ -285,10 +284,11 @@ short sErrorEverOccurred = pdFALSE;
 				/* Increment the value we expect to remove from the queue next time
 				round. */
 				++usExpectedValue;
-                play_from_program_space(PSTR("c"));
-                while (is_playing()){};
-		red_led(0);     // Turn off the red LED.
-		delay_ms(1000);  // Wait for 1 second.
+ 
+            play_from_program_space(PSTR("c"));
+            while (is_playing()){};
+		    red_led(0);     // Turn off the red LED.
+		    delay_ms(20);  // Wait for 20 ms.
 			}
 		}
 	}

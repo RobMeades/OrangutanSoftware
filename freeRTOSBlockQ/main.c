@@ -1,4 +1,4 @@
-/* freeRTOS - an application for the Pololu Orangutan X2
+/* freeRTOS Block Q example - an application for the Pololu Orangutan X2
  *
  * This application uses the Pololu AVR C/C++ Library.  For help, see:
  * -User's guide: http://www.pololu.com/docs/0J20
@@ -31,7 +31,7 @@ int main()
 	{
 		clear();
 
-        vStartBlockingQueueTasks(10);
+        vStartBlockingQueueTasks(3);
 
         vTaskStartScheduler();
         return 0;
