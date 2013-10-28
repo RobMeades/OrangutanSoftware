@@ -148,9 +148,7 @@
   </avrgcc.linker.libraries.Libraries>
   <avrgcc.linker.libraries.LibrarySearchPaths>
     <ListValues>
-      <Value>C:\Users\Rob Meades\Documents\Atmel Studio\6.1\FreeRTOSLib\Debug</Value>
-      <Value>C:\libpololu-avr</Value>
-      <Value>C:\Users\Rob Meades\Documents\Atmel Studio\6.1\PololuLibs\Debug</Value>
+      <Value>../../PololuLibs/Debug</Value>
     </ListValues>
   </avrgcc.linker.libraries.LibrarySearchPaths>
   <avrgcc.linker.miscellaneous.LinkerFlags>-lpololu_atmega1284p_x2</avrgcc.linker.miscellaneous.LinkerFlags>
