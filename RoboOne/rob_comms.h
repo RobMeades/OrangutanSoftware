@@ -8,12 +8,8 @@
  * Author: Rob Meades
  */
 
-typedef char CommandString;
-
-void vTaskCommsIO (void *pvParameters);
-
 void commsInit (void);
 
-CommandString * receiveSerialCommand (void);
+bool receiveSerialCommand (char **pCommandStringStore);
 
 void sendSerialString (char **pSendString);

@@ -58,38 +58,33 @@
 #include <rob_system.h>
 #include <rob_comms.h>
 #include <rob_processing.h>
-#include <rob_motion.h>
 
-#include <FreeRTOS.h>
-#include <task.h>
-#include <queue.h>
-
-#define COMMS_RECEIVE_QUEUE_SIZE 8
-#define COMMAND_QUEUE_SIZE 8
+#define COMMAND_LIST_SIZE 4
 #define HELLO_STRING "RoboOne at your service.\r\n"
 #define HELLO_TUNE ">g32>>c32"
 
-/* - OS STUFF ------------------------------------------------------------------------- */
-
-/* Queue for received serial strings */
-xQueueHandle xCommsReceiveQueue;
-
-/* Queue for commands */
-xQueueHandle xCommandQueue;
+         char *pCommandStringList[COMMAND_LIST_SIZE]; /* List of pointers to malloced strings containing received commands */
+unsigned char nextCommandString = 0;
+CodedCommand  codedCommandList[COMMAND_LIST_SIZE];  /* An array of coded command buffers */
+unsigned char nextCodedCommand = 0;
 
 /* - STATIC FUNCTIONS ----------------------------------------------------------------- */
 
 /* One-time initialisation */
 static void startStuff (void)
 {
-	play_from_program_space (PSTR(HELLO_TUNE));  /* Play welcoming notes */
+    unsigned char x;
 
-    /* Sort the display */
+	play_from_program_space (PSTR(HELLO_TUNE));  /* Play welcoming notes */
     lcd_init_printf();
     clear();
 
-    /* Sort the serial port */
     commsInit();
+
+    for (x = 0; x < COMMAND_LIST_SIZE; x++)
+    {
+        pCommandStringList[x] = PNULL;
+    }
 
     /* Say hello */
     serial_send (USB_COMM, HELLO_STRING, strlen(HELLO_STRING));
@@ -99,32 +94,58 @@ static void startStuff (void)
 
 int main()
 {
+    bool success = true;
+    bool echo = false;
+
     startStuff();
 
-	while (1)
+	while (success)
 	{
-        /* Create the queues */
-        xCommsReceiveQueue = xQueueCreate (COMMS_RECEIVE_QUEUE_SIZE, sizeof (CommandString *));
-        ASSERT_STRING (xCommsReceiveQueue, "Could not create xCommsReceiveQueue");
-        xCommandQueue = xQueueCreate (COMMAND_QUEUE_SIZE, sizeof (CodedCommand));
-        ASSERT_STRING (xCommandQueue, "Could not create xCommandQueue");
+        /* Check for things going on on the USB interface (no interrupts there) */
+        serial_check();
 
-        /* Create the tasks */
-        xTaskCreate (vTaskProcessing, (signed char * const) "ProcessingTask", 250, PNULL, 1, NULL);
-        xTaskCreate (vTaskMotion, (signed char * const) "MotionTask", 250, PNULL, 2, NULL);
-        xTaskCreate (vTaskCommsIO, (signed char * const) "CommsIOTask", 250, PNULL, 3, NULL);
+        success = receiveSerialCommand (&pCommandStringList[nextCommandString]);
+        if (success && pCommandStringList[nextCommandString] != PNULL)
+        {
+            //printf ("Received: %s\n", pCommandStringList[nextCommandString]);
+            if (!echo)
+            {
+                if (processCommand (pCommandStringList[nextCommandString], &codedCommandList[nextCommandString]))
+                {
+                    printf ("OK: #%d %c %d", codedCommandList[nextCommandString].buffer[CODED_COMMAND_INDEX_POS], codedCommandList[nextCommandString].buffer[CODED_COMMAND_ID_POS], (((unsigned int) codedCommandList[nextCommandString].buffer[CODED_COMMAND_VALUE_POS]) << 8) + codedCommandList[nextCommandString].buffer[CODED_COMMAND_VALUE_POS + 1]);
+                    if (codedCommandList[nextCommandString].buffer[CODED_COMMAND_UNITS_POS] != 0)
+                    {
+                        printf (" %c", codedCommandList[nextCommandString].buffer[CODED_COMMAND_UNITS_POS]);
+                    }
+                    if (codedCommandList[nextCommandString].buffer[CODED_COMMAND_ID_POS] == 'E')
+                    {
+                        echo = true;
+                    }
+                }
+                else
+                {
+                    printf ("Bad command");
+                }
+                printf ("\n");
 
-        /* Start the scheduler */
-        vTaskStartScheduler();
+                free (pCommandStringList[nextCommandString]);
+                pCommandStringList[nextCommandString] = PNULL;
+            }
+            else
+            {
+                sendSerialString (&pCommandStringList[nextCommandString]); /* This handles the freeing of the entry by itself */
+            }
 
-        ASSERT_ALWAYS_STRING ("Should never get here!");
+            nextCommandString++;
+            if (nextCommandString >= COMMAND_LIST_SIZE)
+            {
+                nextCommandString = 0;
+            }
+
+            ASSERT (pCommandStringList[nextCommandString] == PNULL, "Command List Full");
+        }
 	}
 
     endStuff();
 }
 
-void vApplicationStackOverflowHook (xTaskHandle taskHandle, char * name)
-{
-    printf ("Stack in %s overflowed", name);
-    while (1);
-}

@@ -30,16 +30,9 @@ void endStuff (void)
 /* The parameters are the filename or function name, line number and a null-terminated string to be printed
  * stating something useful about the condition.
  * This function doesn't actually return. */
-bool assertFunc (const char * place, int line, const char * pText, int param1)
+bool assertFunc (const char * place, int line, const char * text)
 {
-    if (pText)
-    {
-        printf ("%s#%d:%s %d\n", place, line, pText, param1);    
-    }
-    else
-    {
-        printf ("%s#%d: %d\n", place, line, param1);        
-    }
+    printf ("%s#%d:%s\n", place, line, text);
     play_from_program_space (PSTR(ASSERT_TUNE));  // Play some warning notes.
     while (is_playing())
     {
