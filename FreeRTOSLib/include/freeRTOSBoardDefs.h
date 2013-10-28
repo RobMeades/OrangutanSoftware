@@ -36,9 +36,9 @@ extern "C" {
 //	#define portSD_CARD						// define the use of the SD Card for Goldilocks 1284p
 //	#define portRTC_DEFINED					// RTC DS1307 implemented, therefore define.
 
-//	#define	portSERIAL_BUFFER_RX	64		// Define the size of the serial receive buffer.
-//	#define	portSERIAL_BUFFER_TX	255		// Define the size of the serial transmit buffer, only as long as the longest text.
-//	#define portSERIAL_BUFFER		portSERIAL_BUFFER_TX
+	#define	portSERIAL_BUFFER_RX	64		// Define the size of the serial receive buffer.
+	#define	portSERIAL_BUFFER_TX	255		// Define the size of the serial transmit buffer, only as long as the longest text.
+	#define portSERIAL_BUFFER		portSERIAL_BUFFER_TX
 
 //  #define portUSE_TIMER1_PWM				// Define which Timer to use as the PWM Timer (not the tick timer).
 											// though it is better to use Pololu functions, as they support 8x multiplexed servos.
