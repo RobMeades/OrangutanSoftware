@@ -93,7 +93,9 @@
 
 #include <avr/io.h>
 #include <avr/pgmspace.h>
-#include <stdlib.h>
+
+//#include <stdlib.h>
+#include <FreeRTOS.h>
 
 #ifndef F_CPU
 #define F_CPU 20000000UL	// Orangutans run at 20 MHz
@@ -796,9 +798,11 @@ void OrangutanLCD::scroll(unsigned char direction, unsigned char num,
 void OrangutanLCD::initPrintf()
 {
 	if (printf_chars != 0)
-		free(printf_chars);
+//		free(printf_chars);
+		vPortFree(printf_chars);
 
-	printf_chars = (char*)malloc(sizeof(char)*SAVED_CHARS);
+//	printf_chars = (char*)malloc(sizeof(char)*SAVED_CHARS);
+	printf_chars = (char*)pvPortMalloc(sizeof(char)*SAVED_CHARS);
 	if (printf_chars == 0)
 		return;
 	unsigned char i;
