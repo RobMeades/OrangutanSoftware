@@ -23,9 +23,9 @@
 #define DEFAULT_TURN_DEGREES       90
 
 #define PNULL (void *) NULL
-#define ASSERT_ALWAYS_STRING(sTRING) ((assertFunc (__FUNCTION__, __LINE__, ((const char *) sTRING), 0)))
+#define ASSERT_ALWAYS_STRING(sTRING) ((assertFunc (__FUNCTION__, __LINE__, PSTR(sTRING), 0)))
 #define ASSERT_ALWAYS_PARAM(pARAM1) ((assertFunc (__FUNCTION__, __LINE__, PNULL, (pARAM1))))
-#define ASSERT_STRING(cONDITION,sTRING) ((cONDITION) ? true : (assertFunc (__FUNCTION__, __LINE__, ((const char *) sTRING), 0)))
+#define ASSERT_STRING(cONDITION,sTRING) ((cONDITION) ? true : (assertFunc (__FUNCTION__, __LINE__, PSTR(sTRING), 0)))
 #define ASSERT_PARAM(cONDITION,pARAM1) ((cONDITION) ? true : (assertFunc (__FUNCTION__, __LINE__, PNULL, (pARAM1))))
 
 bool assertFunc (const char * place, int line, const char * pText, int param1);
