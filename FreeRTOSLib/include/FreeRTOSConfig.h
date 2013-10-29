@@ -71,7 +71,7 @@
 #define configUSE_PREEMPTION		    1
 #define configUSE_IDLE_HOOK		        0
 #define configUSE_TICK_HOOK		        0
-#define configMAX_PRIORITIES		    ( ( unsigned portBASE_TYPE ) 4 )
+#define configMAX_PRIORITIES		    ( ( unsigned portBASE_TYPE ) 5 )
 #define configMINIMAL_STACK_SIZE	    ( ( uint16_t ) 85 )
 #define configMAX_TASK_NAME_LEN		    ( 16 )
 #define configUSE_TRACE_FACILITY	    0

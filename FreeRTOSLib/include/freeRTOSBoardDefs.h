@@ -28,7 +28,7 @@ extern "C" {
                                                                     // Use 1000Hz to get mSec timing using TIMER3.
 
 	#define configCPU_CLOCK_HZ		( ( uint32_t ) F_CPU )			// This F_CPU variable set by Eclipse environment
-    #define configTOTAL_HEAP_SIZE	( (size_t )  4000  )			// used for heap_1.c and heap2.c, and heap_4.c only (heap_3.c uses malloc() and free())
+    #define configTOTAL_HEAP_SIZE	( (size_t )  12000  )			// used for heap_1.c and heap2.c, and heap_4.c only (heap_3.c uses malloc() and free())
 
 //	#define portW5200						// or we assume W5100 Ethernet
 
