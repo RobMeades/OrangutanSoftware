@@ -1,0 +1,2 @@
+echo Starting ttpmacro.exe with file RoboOneWithRTOS.hex in directoy "C:\Users\Rob Meades\Documents\Atmel Studio\6.1\RoboOneWithRTOS\Debug"
+ttpmacro "C:\Users\Rob Meades\Documents\Atmel Studio\6.1\RoboOneWithRTOS\teratermsend.ttl" RoboOneWithRTOS.hex "C:\Users\Rob Meades\Documents\Atmel Studio\6.1\RoboOneWithRTOS\Debug"
