@@ -31,6 +31,7 @@ unsigned char uartNextCommandStartPos = 0;
 
 /* The queue that the comms receive task uses */
 extern xQueueHandle xCommsReceiveQueue;
+extern xQueueHandle xCommsTransmitQueue;
 
 /* The Comms receive task */
 void vTaskCommsReceive (void *pvParameters)
@@ -51,9 +52,11 @@ void vTaskCommsReceive (void *pvParameters)
             rob_clear();
             rob_print_from_program_space (PSTR("Received: "));
             rob_print (pCommandString);
-            //RobPrintf ("Received: %s\n", pCommandString);
             xStatus = xQueueSend (xCommsReceiveQueue, &pCommandString, 0);
-            ASSERT_STRING (xStatus == pdPASS, "Failed to send to receive queue.");
+            if (xStatus != pdPASS)
+            {
+                sendSerialString (BUSY_STRING, sizeof (BUSY_STRING));
+            }
         }
 
         /* Let other tasks run */
@@ -83,7 +86,8 @@ void vTaskCommsTransmit (void *pvParameters)
 
             bytesToSend = RobStrlen (pSendString) + 1; /* +1 because strlen() doesn't include the terminator and we need to send it */
             *(pSendString + bytesToSend - 1) = '\r'; /* Replace the null terminator with a terminator that makes sense to a PC comms handler*/
-            rob_serial_send_blocking_usb_comm (pSendString, bytesToSend); // TODO: REALLY shouldn't block here
+             /* Would really prefer not to block here but background send doesn't seem to work reliably under FreeRTOS */
+            rob_serial_send_blocking_usb_comm (pSendString, bytesToSend);
 
             /* Free the memory */
             RobFree (pSendString);
@@ -161,4 +165,23 @@ CommandString * receiveSerialCommand (void)
     uartReceiveBufferPos = newBufferPos;
 
     return pCommandString;
+}
+
+/* Add a (null terminated) string to the transmit queue.  size must include the terminator. */
+void sendSerialString (char * pSendString, size_t size)
+{
+    char * pMalloc;
+    portBASE_TYPE xStatus;
+    
+    pMalloc = RobMalloc (size);
+    if (pMalloc)
+    {
+        RobMemcpy (pMalloc, pSendString, size);
+        xStatus = xQueueSend (xCommsTransmitQueue, &pMalloc, 0);
+        ASSERT_STRING (xStatus == pdPASS, "Failed to send to transmit queue.");
+    }
+    else
+    {
+        ASSERT_ALWAYS_PARAM (size);
+    }
 }

@@ -59,7 +59,23 @@ void vTaskProcessing (void *pvParameters)
                 if (codedCommand.buffer[CODED_COMMAND_ID_POS] != 'E')
                 {
                     /* Send the command off to the command queue */
-                    xQueueSend (xCommandQueue, &codedCommand, 0);
+                    /* For some very weird reason the xQueueSend function here never, ever,
+                    ** returns errQUEUE_FULL, even if the queue really is full.  To combat
+                    ** this, check if there are already too many messages waiting before
+                    ** sending */
+                    if (uxQueueMessagesWaiting (xCommandQueue) < COMMAND_QUEUE_SIZE)
+                    {
+                        xStatus = xQueueSend (xCommandQueue, &codedCommand, 0);                    
+                    }
+                    else
+                    {
+                        xStatus  = errQUEUE_FULL;
+                    }
+                    
+                    if (xStatus != pdPASS)
+                    {
+                        sendSerialString (BUSY_STRING, sizeof (BUSY_STRING));
+                    }
                 }
                 else
                 {

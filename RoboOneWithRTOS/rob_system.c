@@ -21,7 +21,7 @@
 /* Stuff to do when exiting */
 void endStuff (void)
 {
-    rob_lcd_goto_xy(0, 3);
+    rob_lcd_goto_xy (0, 3);
     rob_print_from_program_space (PSTR("Free heap: "));
     rob_print_long (xPortGetFreeHeapSize());  /* Only works for heap_1, heap_2 and heap_4 */
 }
@@ -42,8 +42,6 @@ bool assertFunc (const char * pPlace, int line, const char * pText, int param1)
         rob_print (pText);
         rob_print_character (' ');
         rob_print_unsigned_long (param1);
-
-        // RobPrintf ("%s#%d:%s %d\n", place, line, pText, param1);
     }
     else
     {
@@ -53,7 +51,6 @@ bool assertFunc (const char * pPlace, int line, const char * pText, int param1)
         rob_print_character (':');
         rob_print_character (' ');
         rob_print_unsigned_long (param1);
-        //RobPrintf ("%s#%d: %d\n", place, line, param1);
     }
     rob_wait_play_from_program_space (PSTR(ASSERT_TUNE));  // Play some warning notes.
 

@@ -8,14 +8,36 @@
  *  Author: Rob Meades
  */
 
+/* Can play with using the C library functions directly by commenting/uncommenting as necessary below */
+/* If you add any one of the native functions, uncomment the lines to let stdlib.h and string.h in also */
+#include <stdlib.h>
+#include <string.h>
+
 #if 0
-void RobPrintf (char* fmt, ...);
+    //#define RobPrintf printf
+#    define RobPrintf _RobPrintf
+     void _RobPrintf (char* fmt, ...);
 #endif
 
-void * RobMalloc (size_t size);
-void RobFree (void * ptr);
-size_t RobStrlen (const char * ptr);
-void * RobMemset (void * ptr, int value, size_t size);
+//#define RobMalloc malloc
+#define RobMalloc _RobMalloc
+void * _RobMalloc (size_t size);
+
+//#define RobFree free
+#define RobFree _RobFree
+void _RobFree (void * ptr);
+
+#define RobStrlen strlen
+//#define RobStrlen _RobStrlen
+//size_t _RobStrlen (const char * ptr);
+
+#define RobMemset memset
+//#define RobMemset _RobMemset
+//void * _RobMemset (void * ptr, int value, size_t size);
+
+#define RobMemcpy memcpy
+//#define RobMemcpy _RobMemcpy
+//void * _RobMemcpy (void * destPtr, void const * sourcePtr, size_t size);
 
 void rob_wait_play_from_program_space (const char * pSequence);
 void rob_lcd_init_printf (void);

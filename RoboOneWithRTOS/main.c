@@ -62,7 +62,6 @@
 #include <queue.h>
 
 #define COMMS_RECEIVE_QUEUE_SIZE 8
-#define COMMAND_QUEUE_SIZE 8
 #define COMMS_TRANSMIT_QUEUE_SIZE 8
 #define HELLO_STRING "RoboOne started.\r\n"
 #define HELLO_STRING_NO_TERMINATOR "RoboOne started."
@@ -117,8 +116,8 @@ int main()
         ASSERT_STRING (xCommsTransmitQueue, "Could not create xCommsTransmitQueue");
 
         /* Create the tasks */
-        xTaskCreate (vTaskProcessing, (signed char * const) "ProcessingTask", 500, PNULL, 1, NULL);
-        xTaskCreate (vTaskMotion, (signed char * const) "MotionTask", 500, PNULL, 2, NULL);
+        xTaskCreate (vTaskMotion, (signed char * const) "MotionTask", 500, PNULL, 1, NULL);
+        xTaskCreate (vTaskProcessing, (signed char * const) "ProcessingTask", 500, PNULL, 2, NULL); /* Higher than motion so that we can interrupt it */
         xTaskCreate (vTaskCommsTransmit, (signed char * const) "CommsTransmitTask", 500, PNULL, 3, NULL);
         xTaskCreate (vTaskCommsReceive, (signed char * const) "CommsReceiveTask", 500, PNULL, 4, NULL);
 

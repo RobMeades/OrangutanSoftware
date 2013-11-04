@@ -17,3 +17,5 @@ void vTaskCommsTransmit (void *pvParameters);
 void commsInit (void);
 
 CommandString * receiveSerialCommand (void);
+
+void sendSerialString (char * pSendString, size_t size);

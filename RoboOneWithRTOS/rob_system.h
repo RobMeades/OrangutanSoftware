@@ -22,6 +22,10 @@
 #define UNITS_ARE_SPEED            'S'
 #define DEFAULT_TURN_DEGREES       90
 
+#define BUSY_STRING "Sorry, busy."
+
+#define COMMAND_QUEUE_SIZE 8 /* Defined here because of queue message length checking workaround on rob_processing.c */
+
 #define PNULL (void *) NULL
 #define ASSERT_ALWAYS_STRING(sTRING) ((assertFunc (__FUNCTION__, __LINE__, PSTR(sTRING), 0)))
 #define ASSERT_ALWAYS_PARAM(pARAM1) ((assertFunc (__FUNCTION__, __LINE__, PNULL, (pARAM1))))

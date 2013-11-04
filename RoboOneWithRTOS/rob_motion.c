@@ -46,12 +46,10 @@ void vTaskMotion (void *pvParameters)
         rob_print_character (codedCommand.buffer[CODED_COMMAND_ID_POS]);
         rob_print_character (' ');
         rob_print_unsigned_long ((((unsigned int) codedCommand.buffer[CODED_COMMAND_VALUE_POS]) << 8) + codedCommand.buffer[CODED_COMMAND_VALUE_POS + 1]);
-        //RobPrintf ("OK: #%d %c %d", codedCommand.buffer[CODED_COMMAND_INDEX_POS], codedCommand.buffer[CODED_COMMAND_ID_POS], (((unsigned int) codedCommand.buffer[CODED_COMMAND_VALUE_POS]) << 8) + codedCommand.buffer[CODED_COMMAND_VALUE_POS + 1]);
         if (codedCommand.buffer[CODED_COMMAND_UNITS_POS] != 0)
         {
             rob_print_character (' ');
             rob_print_character (codedCommand.buffer[CODED_COMMAND_UNITS_POS]);
-            //RobPrintf (" %c", codedCommand.buffer[CODED_COMMAND_UNITS_POS]);
         }
     }
 }

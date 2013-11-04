@@ -27,9 +27,12 @@
 /* - PUBLIC FUNCTIONS ----------------------------------------------------------------- */
 
 /* Wrappers for standard library functions that might not be thread safe */
+/* Don't call these directly, call their macros in rob_wrappers.h so that we
+** can swap between std library and wrapped functions */
+
 #if 0
 /* if you're going to use this, don't forget to add back in rob_lcd_init_printf() in the initialisation code */
-void RobPrintf (char * pFmt, ...)
+void _RobPrintf (char * pFmt, ...)
 {
     va_list args;
 
@@ -43,17 +46,17 @@ void RobPrintf (char * pFmt, ...)
 }
 #endif
 
-void * RobMalloc (size_t size)
+void * _RobMalloc (size_t size)
 {
     return pvPortMalloc (size);
 }
 
-void RobFree (void * pPtr)
+void _RobFree (void * pPtr)
 {
    vPortFree (pPtr);
 }
 
-size_t RobStrlen (const char * pPtr)
+size_t _RobStrlen (const char * pPtr)
 {
     size_t len;
 
@@ -66,13 +69,26 @@ size_t RobStrlen (const char * pPtr)
     return len;
 }
 
-void * RobMemset (void * pPtr, int value, size_t size)
+void * _RobMemset (void * pPtr, int value, size_t size)
 {
     void * pReturnPtr;
 
     vTaskSuspendAll();
     {
         pReturnPtr = memset (pPtr, value, size);
+    }
+    xTaskResumeAll();
+
+    return pReturnPtr;
+}
+
+void * _RobMemcpy (void * destPtr, void const * sourcePtr, size_t size)
+{
+    void * pReturnPtr;
+
+    vTaskSuspendAll();
+    {
+        pReturnPtr = memcpy(destPtr, sourcePtr, size);
     }
     xTaskResumeAll();
 
