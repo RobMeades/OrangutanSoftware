@@ -20,6 +20,7 @@
  * Distance?
  * Velocity?
  * Progress?
+ * Info?
  * Echo
  *
  * Commands can be single letters, we only look for a numeric character, Forwards and
@@ -27,7 +28,8 @@
  * or a deviation in degrees, Mark will set the zero point and Distance? reads
  * the distance travelled since the last mark.  Home is the "return to charger"
  * command and only works if the robot is in sight of the charger. Progress?
- * reports what the robot is currently doing.  Echo is used purely for testing and
+ * reports what the robot is currently doing.  Info? returns a standard set of
+ * status information.  Echo is used purely for testing and
  * causes every received command to be echoed without action (until reset). If a
  * command is prefixed by # and a number then the responses from the controller are
  * prefixed with the same tag (so that sequences of commands can be sent and the
@@ -86,9 +88,9 @@ static void startStuff (void)
 	rob_wait_play_from_program_space (PSTR(HELLO_TUNE));  /* Play welcoming notes */
 
     /* Sort the display */
-#if 0    
+#if 0
     rob_lcd_init_printf();
-#endif    
+#endif
     rob_clear();
 
     /* Sort the serial port */

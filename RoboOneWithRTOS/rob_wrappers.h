@@ -55,3 +55,4 @@ void rob_print_from_program_space (const char * pStr);
 void rob_print_long (long value);
 void rob_print_unsigned_long (unsigned long value);
 void rob_lcd_goto_xy (int col, int row);
+unsigned int rob_read_vcc_millivolts (void);

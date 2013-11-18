@@ -8,6 +8,7 @@ filename = ""
 filenameAndFullPath = ""
 ;Note that this is not the full string, it needs the filename added on the end later
 avrdudeInvoke = "avrdude -p m1284p -P /dev/OrangutanUSB -c avrispv2 -U flash:w:"
+deleteFileOnDevice = "rm "
 messageBoxTitle = "Write To Orangutan Via Pi"
 
 ;Assume we will fail (files are written to the same directory as this file)
@@ -24,6 +25,7 @@ if result > 0 then
 endif
 strconcat filenameAndFullPath filename
 strconcat avrdudeInvoke filename
+strconcat deleteFileOnDevice filename
 
 strlen (filenameAndFullPath)
 if result = 0 goto usage
@@ -49,6 +51,9 @@ wait "Password:"
 sendln "18victoria"
 statusbox "Waiting for prompt..." messageBoxTitle
 wait "~$"
+statusbox "Deleting file on device..." messageBoxTitle
+sendln deleteFileOnDevice
+wait "~$"
 ;Start zmodem receive on the other end
 statusbox "Starting Zmodem on Pi..." messageBoxTitle
 sendln "rz"
@@ -57,7 +62,7 @@ statusbox "Sending file to Pi..." messageBoxTitle
 zmodemsend filenameAndFullPath 1
 ;now invoke the avrdude programmer on the far end
 statusbox "Invoking Avrdude to program Orangutan..." messageBoxTitle
-timeout = 10
+timeout = 20
 sendln avrdudeInvoke
 wait "bytes of flash verified"
 if result > 0 goto avrdudesuccess

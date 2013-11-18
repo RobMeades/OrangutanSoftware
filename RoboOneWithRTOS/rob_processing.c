@@ -110,11 +110,12 @@ void vTaskProcessing (void *pvParameters)
  * [#x] D[istance?]
  * [#x] V[elocity?]
  * [#x] P[rogress?]
+ * [#x] I[nfo?]
  * [#x] E[cho]
  *
  * Format of coded command is:
  * index (1 byte 0-255),
- * ID (1 byte from FBRLSHMDVP),
+ * ID (1 byte from FBRLSHMDVPI),
  * value (2 bytes) and it is actually converted to cm or cm/s here, with the higher nibbles to the left,
  * units (1 byte from S for speed D for distance) */
 
@@ -229,6 +230,8 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
             case 'V':
             case 'p':
             case 'P':
+            case 'I':
+            case 'i':
             case 'E':
             case 'e':
                 if ((commandEncodeState == COMMAND_ENCODE_STATE_NULL || commandEncodeState == COMMAND_ENCODE_STATE_GET_ID) &&
@@ -341,8 +344,8 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
             }
         }
 
-        /* None of Stop, Halt, Mark, Distance, Velocity or Progress can have values or units */
-        if (id == 'S' || id == 'H' || id == 'M' || id == 'D' || id == 'V' || id == 'P')
+        /* None of Stop, Halt, Mark, Distance, Velocity, Progress or Info can have values or units */
+        if (id == 'S' || id == 'H' || id == 'M' || id == 'D' || id == 'V' || id == 'P' || id == 'I')
         {
             if (value > 0 || units > 0)
             {

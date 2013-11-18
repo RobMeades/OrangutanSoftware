@@ -249,4 +249,19 @@ void rob_lcd_goto_xy (int col, int row)
     xTaskResumeAll();
 }
 
+unsigned int rob_read_vcc_millivolts()
+{
+    unsigned int supplyVolts;
+    
+    vTaskSuspendAll();
+    {
+        supplyVolts = read_vcc_millivolts();
+    }
+    xTaskResumeAll();
+    
+    return supplyVolts;
+}
+
+ 
+
 

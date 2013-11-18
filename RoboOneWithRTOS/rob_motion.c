@@ -40,7 +40,7 @@ void vTaskMotion (void *pvParameters)
         if (codedCommand.buffer[CODED_COMMAND_INDEX_POS] != CODED_COMMAND_INDEX_UNUSED)
         {
             rob_print_character ('#');
-            rob_print_unsigned_long (codedCommand.buffer[CODED_COMMAND_INDEX_POS]);            
+            rob_print_unsigned_long (codedCommand.buffer[CODED_COMMAND_INDEX_POS]);
         }
         rob_print_character (' ');
         rob_print_character (codedCommand.buffer[CODED_COMMAND_ID_POS]);
@@ -50,6 +50,15 @@ void vTaskMotion (void *pvParameters)
         {
             rob_print_character (' ');
             rob_print_character (codedCommand.buffer[CODED_COMMAND_UNITS_POS]);
+        }
+        
+        /* Quick hack to do something useful */
+        if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'I')
+        {
+            rob_lcd_goto_xy (0, 2);
+            rob_print_from_program_space (PSTR("Supply: "));
+            rob_print_unsigned_long (rob_read_vcc_millivolts());
+            rob_print_from_program_space (PSTR("mV"));
         }
     }
 }
