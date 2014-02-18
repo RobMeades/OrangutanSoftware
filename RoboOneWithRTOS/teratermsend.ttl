@@ -1,3 +1,4 @@
+;Baud rates etc. can be found in teraterm.ini in the teraterm directory (should be 38400, 8N1, no flow control)
 timeout = 10
 connect '/C=6'
 
@@ -62,7 +63,7 @@ statusbox "Sending file to Pi..." messageBoxTitle
 zmodemsend filenameAndFullPath 1
 ;now invoke the avrdude programmer on the far end
 statusbox "Invoking Avrdude to program Orangutan..." messageBoxTitle
-timeout = 20
+timeout = 60
 sendln avrdudeInvoke
 wait "bytes of flash verified"
 if result > 0 goto avrdudesuccess
