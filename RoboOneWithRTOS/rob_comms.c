@@ -18,7 +18,7 @@
 
 #define SERIAL_BAUD_RATE 9600
 #define NUM_BYTES_FROM_RECEIVE_RING(nEWpOS, oLDpOS) ((nEWpOS) >= (oLDpOS) ?  ((nEWpOS) - (oLDpOS)) : (sizeof (uartReceiveBuffer) - (oLDpOS) + (nEWpOS)))
-#define COMMAND_TERMINATOR '\r'
+#define COMMAND_TERMINATOR '\n'
 
 unsigned char uartSendBuffer[128];
          char uartReceiveBuffer[128]; /* not more than 256, must be bigger than the longest command */
@@ -78,21 +78,21 @@ void vTaskCommsTransmit (void *pvParameters)
         xStatus = xQueueReceive (xCommsTransmitQueue, &pSendString, portMAX_DELAY);
 
         ASSERT_STRING (xStatus == pdPASS, "Failed to receive from serial transmit queue.");
-        
+
         /* Do the sending thang, if we've been given something to send */
         if (pSendString != PNULL)
         {
             unsigned char bytesToSend;
 
             bytesToSend = RobStrlen (pSendString) + 1; /* +1 because strlen() doesn't include the terminator and we need to send it */
-            *(pSendString + bytesToSend - 1) = '\r'; /* Replace the null terminator with a terminator that makes sense to a PC comms handler*/
+            *(pSendString + bytesToSend - 1) = COMMAND_TERMINATOR; /* Replace the null terminator with a terminator that makes sense to a PC comms handler*/
              /* Would really prefer not to block here but background send doesn't seem to work reliably under FreeRTOS */
             rob_serial_send_blocking_usb_comm (pSendString, bytesToSend);
 
             /* Free the memory */
             RobFree (pSendString);
-        }        
-    }    
+        }
+    }
 }
 
 /* Initialisation */
@@ -172,7 +172,7 @@ void sendSerialString (char * pSendString, size_t size)
 {
     char * pMalloc;
     portBASE_TYPE xStatus;
-    
+
     pMalloc = RobMalloc (size);
     if (pMalloc)
     {

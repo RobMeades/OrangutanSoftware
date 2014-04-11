@@ -65,13 +65,13 @@ void vTaskProcessing (void *pvParameters)
                     ** sending */
                     if (uxQueueMessagesWaiting (xCommandQueue) < COMMAND_QUEUE_SIZE)
                     {
-                        xStatus = xQueueSend (xCommandQueue, &codedCommand, 0);                    
+                        xStatus = xQueueSend (xCommandQueue, &codedCommand, 0);
                     }
                     else
                     {
                         xStatus  = errQUEUE_FULL;
                     }
-                    
+
                     if (xStatus != pdPASS)
                     {
                         sendSerialString (BUSY_STRING, sizeof (BUSY_STRING));
@@ -269,7 +269,8 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                 }
                 break;
             case 0:
-                commandEncodeState = COMMAND_ENCODE_STATE_FINISHED; /* Stop if we hit a null */
+            case '\x0a':
+                commandEncodeState = COMMAND_ENCODE_STATE_FINISHED; /* Stop if we hit a null, or an LF */
                 break;
             default:
                 /* Do nothing - all other characters can just be discarded */

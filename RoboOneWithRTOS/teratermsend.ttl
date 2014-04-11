@@ -51,10 +51,10 @@ sendln "pi"
 wait "Password:"
 sendln "18victoria"
 statusbox "Waiting for prompt..." messageBoxTitle
-wait "~$"
+wait "~]$"
 statusbox "Deleting file on device..." messageBoxTitle
 sendln deleteFileOnDevice
-wait "~$"
+wait "~]$"
 ;Start zmodem receive on the other end
 statusbox "Starting Zmodem on Pi..." messageBoxTitle
 sendln "rz"
@@ -84,7 +84,7 @@ goto logout
 ;log out nice and cleanly
 :logout
 sendln
-wait "~$"
+wait "~]$"
 sendln "exit"
 wait "login:"
 
