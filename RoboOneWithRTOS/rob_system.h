@@ -23,6 +23,8 @@
 #define DEFAULT_TURN_DEGREES       90
 
 #define BUSY_STRING "Sorry, busy."
+#define OK_STRING "OK"
+#define ERROR_STRING "ERROR"
 
 #define COMMAND_QUEUE_SIZE 8 /* Defined here because of queue message length checking workaround on rob_processing.c */
 

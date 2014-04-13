@@ -96,13 +96,25 @@ void * _RobMemcpy (void * destPtr, void const * sourcePtr, size_t size)
 }
 
 /* Wrappers for Pololu functions that may not be thread safe or like being delayed/swapped-out */
+void rob_wait_play (const char * pSequence)
+{
+    vTaskSuspendAll();
+    {
+        play (pSequence);
+        while (is_playing())
+        {
+        }
+    }
+    xTaskResumeAll();
+}
+
 void rob_wait_play_from_program_space (const char * pSequence)
 {
     vTaskSuspendAll();
     {
         play_from_program_space (pSequence);
         while (is_playing())
-        {        
+        {
         }
     }
     xTaskResumeAll();
@@ -150,7 +162,7 @@ void rob_serial_check (void)
     {
         serial_check();
     }
-    xTaskResumeAll();    
+    xTaskResumeAll();
 }
 
 void rob_serial_set_baud_rate_usb_comm (unsigned long baud)
@@ -174,13 +186,13 @@ void rob_serial_receive_ring_usb_comm (char * pBuffer, unsigned char size)
 unsigned char rob_serial_get_received_bytes_usb_comm (void)
 {
     unsigned char numBytes;
-    
+
     vTaskSuspendAll();
     {
         numBytes = serial_get_received_bytes (USB_COMM);
     }
-    xTaskResumeAll();    
-    
+    xTaskResumeAll();
+
     return numBytes;
 }
 
@@ -201,7 +213,7 @@ void rob_print_character (char c)
     {
         print_character (c);
     }
-    xTaskResumeAll();   
+    xTaskResumeAll();
 }
 
 void rob_print (const char * pStr)
@@ -252,16 +264,16 @@ void rob_lcd_goto_xy (int col, int row)
 unsigned int rob_read_vcc_millivolts()
 {
     unsigned int supplyVolts;
-    
+
     vTaskSuspendAll();
     {
         supplyVolts = read_vcc_millivolts();
     }
     xTaskResumeAll();
-    
+
     return supplyVolts;
 }
 
- 
+
 
 

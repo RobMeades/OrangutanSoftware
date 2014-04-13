@@ -1,5 +1,5 @@
 ;Baud rates etc. can be found in teraterm.ini in the teraterm directory (should be 38400, 8N1, no flow control)
-timeout = 10
+timeout = 5
 connect '/C=6'
 
 try = 0
@@ -31,12 +31,20 @@ strconcat deleteFileOnDevice filename
 strlen (filenameAndFullPath)
 if result = 0 goto usage
 filesearch filenameAndFullPath
-if result > 0 goto start
+if result > 0 goto checkifloggedin
 msgString = "File "
 strconcat msgString filenameAndFullPath
 strconcat msgString " does not exist."
 messagebox msgString messageBoxTitle
 goto finish
+
+:checkifloggedin
+statusbox "Checking if we're logged in already..." messageBoxTitle
+sendln
+wait "~]$"
+if result = 0 goto start
+logOutAtEnd = 0
+goto alreadyloggedin
 
 ; Try to log in
 :start
@@ -52,6 +60,8 @@ wait "Password:"
 sendln "18victoria"
 statusbox "Waiting for prompt..." messageBoxTitle
 wait "~]$"
+
+:alreadyloggedin
 statusbox "Deleting file on device..." messageBoxTitle
 sendln deleteFileOnDevice
 wait "~]$"
@@ -75,11 +85,13 @@ wait "Thank you."
 goto writesuccess
 
 :writesuccess
-statusbox "Success, logging out..." messageBoxTitle
+statusbox "Success!" messageBoxTitle
 filedelete failFile
 filecreate filehandle successFile
 fileclose filehandle
-goto logout
+if logOutAtEnd = 1 goto logout
+statusbox "Staying logged in..." messageBoxTitle
+goto finish
 
 ;log out nice and cleanly
 :logout

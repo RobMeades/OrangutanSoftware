@@ -26,6 +26,8 @@ typedef enum CommandEncodeStateTag
     COMMAND_ENCODE_STATE_GET_VALUE_MANTISSA,
     COMMAND_ENCODE_STATE_GET_VALUE_FRACTIONAL,
     COMMAND_ENCODE_STATE_GET_UNITS,
+    COMMAND_ENCODE_STATE_GET_OPENING_QUOTE,
+    COMMAND_ENCODE_STATE_GET_STRING,
     COMMAND_ENCODE_STATE_FINISHED
 } CommandEncodeState;
 
@@ -56,7 +58,9 @@ void vTaskProcessing (void *pvParameters)
         {
             if (processCommand (pCommandString, &codedCommand))
             {
-                if (codedCommand.buffer[CODED_COMMAND_ID_POS] != 'E')
+                if (codedCommand.buffer[CODED_COMMAND_ID_POS] != 'E' &&
+                    codedCommand.buffer[CODED_COMMAND_ID_POS] != 'A' &&
+                    codedCommand.buffer[CODED_COMMAND_ID_POS] != 'T' )
                 {
                     /* Send the command off to the command queue */
                     /* For some very weird reason the xQueueSend function here never, ever,
@@ -79,13 +83,34 @@ void vTaskProcessing (void *pvParameters)
                 }
                 else
                 {
-                    echo = true;
+                    /* E, A and T are dealt with locally */
+                    if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'E')
+                    {
+                        echo = true;
+                        sendSerialString (OK_STRING, sizeof (OK_STRING));
+                    }
+                    else if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'A')
+                    {
+                        rob_lcd_goto_xy (0, 1);
+                        rob_print ((const char *) &(pCommandString[codedCommand.buffer[CODED_COMMAND_VALUE_POS]]));
+                        sendSerialString (OK_STRING, sizeof (OK_STRING));
+                    }
+                    else if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'T')
+                    {
+                        rob_wait_play ((const char *) &(pCommandString[codedCommand.buffer[CODED_COMMAND_VALUE_POS]]));
+                        sendSerialString (OK_STRING, sizeof (OK_STRING));
+                    }
+                    else
+                    {
+                        ASSERT_ALWAYS_STRING ("Only IDs E, A and T are handled locally.");
+                    }
                 }
             }
             else
             {
                 rob_lcd_goto_xy (0, 1);
-                rob_print_from_program_space (PSTR("Bad command"));
+                rob_print_from_program_space (PSTR ("Bad command"));
+                sendSerialString (ERROR_STRING, sizeof (ERROR_STRING));
             }
 
             RobFree (pCommandString); /* Free up the memory that held the received command string */
@@ -112,12 +137,15 @@ void vTaskProcessing (void *pvParameters)
  * [#x] P[rogress?]
  * [#x] I[nfo?]
  * [#x] E[cho]
+ * [#x] A"[]"
+ * [#x] T"[]"
  *
  * Format of coded command is:
- * index (1 byte 0-255),
- * ID (1 byte from FBRLSHMDVPI),
- * value (2 bytes) and it is actually converted to cm or cm/s here, with the higher nibbles to the left,
- * units (1 byte from S for speed D for distance) */
+ * - index (1 byte 0-255),
+ * - ID (1 byte from FBRLSHMDVPIA),
+ * - value (2 bytes) and it is actually converted to cm or cm/s here, with the higher nibbles to the left,
+ *   in the case of A/T this is the position of the start of the printable string,
+ * - units (1 byte from S for speed D for distance), in the case of A/T this contains the string length. */
 
 /* Return: success if the command was parseable */
 bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
@@ -126,6 +154,8 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
     unsigned char x;
     unsigned char commandStringSize;
     CommandEncodeState commandEncodeState = COMMAND_ENCODE_STATE_NULL;
+    unsigned char posOpeningQuote = 0;
+    unsigned char posClosingQuote = 0;
     unsigned char mantissa = 0;
     unsigned char fractional = 0;
     unsigned char multiplier = 10;
@@ -145,6 +175,10 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                 if (commandEncodeState == COMMAND_ENCODE_STATE_NULL)
                 {
                     commandEncodeState = COMMAND_ENCODE_STATE_GET_INDEX;
+                }
+                else if (commandEncodeState == COMMAND_ENCODE_STATE_GET_STRING)
+                {
+                    /* Do nothing */
                 }
                 else
                 {
@@ -178,6 +212,10 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                         success = false; /* too big */
                     }
                 }
+                else if (commandEncodeState == COMMAND_ENCODE_STATE_GET_STRING)
+                {
+                    /* Do nothing */
+                }
                 else
                 {
                     success = false; /* numbers are not valid characters elsewhere */
@@ -187,6 +225,10 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                 if (commandEncodeState == COMMAND_ENCODE_STATE_GET_VALUE_MANTISSA)
                 {
                     commandEncodeState = COMMAND_ENCODE_STATE_GET_VALUE_FRACTIONAL;
+                }
+                else if (commandEncodeState == COMMAND_ENCODE_STATE_GET_STRING)
+                {
+                    /* Do nothing */
                 }
                 else
                 {
@@ -206,6 +248,17 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                 {
                     pCodedCommand->buffer[CODED_COMMAND_ID_POS] = y & ~ 0x20; /* AND with inverse of 0x20 to convert to upper case */
                     commandEncodeState = COMMAND_ENCODE_STATE_GET_ID; /* Ensure that we are at "Get Id" here as otherwise it's confusing */
+                }
+                break;
+            case 'a':
+            case 'A':
+            case 't':
+            case 'T':
+                if ((commandEncodeState == COMMAND_ENCODE_STATE_NULL || commandEncodeState == COMMAND_ENCODE_STATE_GET_ID) &&
+                    (pCodedCommand->buffer[CODED_COMMAND_ID_POS] == 0))
+                {
+                    pCodedCommand->buffer[CODED_COMMAND_ID_POS] = y & ~ 0x20; /* AND with inverse of 0x20 to convert to upper case */
+                    commandEncodeState = COMMAND_ENCODE_STATE_GET_OPENING_QUOTE;
                 }
                 break;
             case 's':
@@ -268,8 +321,27 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                     /* do nothing */
                 }
                 break;
+            case '"':
+                if (commandEncodeState == COMMAND_ENCODE_STATE_GET_OPENING_QUOTE)
+                {
+                    commandEncodeState = COMMAND_ENCODE_STATE_GET_STRING;
+                    posOpeningQuote = x;
+                }
+                else
+                {
+                    if (commandEncodeState == COMMAND_ENCODE_STATE_GET_STRING)
+                    {
+                        commandEncodeState = COMMAND_ENCODE_STATE_FINISHED;
+                        posClosingQuote = x;
+                        pCommandString[x] = 0; /* Overwrite it with null so that we have a printable string */
+                    }
+                    else
+                    {
+                        success = false; /* " is not a valid character elsewhere */
+                    }
+                }
+                break;
             case 0:
-            case '\x0a':
                 commandEncodeState = COMMAND_ENCODE_STATE_FINISHED; /* Stop if we hit a null, or an LF */
                 break;
             default:
@@ -342,6 +414,24 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                     pCodedCommand->buffer[CODED_COMMAND_VALUE_POS]     = (unsigned char) (value >> 8);
                     pCodedCommand->buffer[CODED_COMMAND_VALUE_POS + 1] = (unsigned char) value;
                 }
+            }
+        }
+
+        if (id == 'A' || id == 'T')
+        {
+            /* For an Alphanumeric/Tune string, value contains the position of the start of the body of the string and units the length of it */
+            pCodedCommand->buffer[CODED_COMMAND_VALUE_POS] = 0;
+            pCodedCommand->buffer[CODED_COMMAND_VALUE_POS + 1] = 0;
+            pCodedCommand->buffer[CODED_COMMAND_UNITS_POS] = 0;
+
+            if (posOpeningQuote > 0 && posClosingQuote > posOpeningQuote + 1) /* +1 to ensure there are some contents */
+            {
+                pCodedCommand->buffer[CODED_COMMAND_VALUE_POS] = posOpeningQuote + 1;
+                pCodedCommand->buffer[CODED_COMMAND_UNITS_POS] = posClosingQuote - posOpeningQuote - 1;
+            }
+            else
+            {
+                success = false;
             }
         }
 

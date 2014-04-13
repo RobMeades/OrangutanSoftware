@@ -11,6 +11,7 @@
 #include <rob_system.h>
 #include <rob_wrappers.h>
 #include <rob_processing.h>
+#include <rob_comms.h>
 
 #include <FreeRTOS.h>
 #include <task.h>
@@ -36,7 +37,7 @@ void vTaskMotion (void *pvParameters)
         ASSERT_STRING (xStatus == pdPASS, "Failed to receive from command queue.");
 
         rob_lcd_goto_xy (0, 1);
-        rob_print_from_program_space (PSTR("CMD: "));
+        rob_print_from_program_space (PSTR ("CMD: "));
         if (codedCommand.buffer[CODED_COMMAND_INDEX_POS] != CODED_COMMAND_INDEX_UNUSED)
         {
             rob_print_character ('#');
@@ -51,14 +52,16 @@ void vTaskMotion (void *pvParameters)
             rob_print_character (' ');
             rob_print_character (codedCommand.buffer[CODED_COMMAND_UNITS_POS]);
         }
-        
+
         /* Quick hack to do something useful */
         if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'I')
         {
             rob_lcd_goto_xy (0, 2);
-            rob_print_from_program_space (PSTR("Supply: "));
+            rob_print_from_program_space (PSTR ("Supply: "));
             rob_print_unsigned_long (rob_read_vcc_millivolts());
-            rob_print_from_program_space (PSTR("mV"));
+            rob_print_from_program_space (PSTR ("mV"));
         }
+
+        sendSerialString (OK_STRING, sizeof (OK_STRING));
     }
 }

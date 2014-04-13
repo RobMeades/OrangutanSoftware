@@ -39,6 +39,7 @@ void _RobFree (void * ptr);
 //#define RobMemcpy _RobMemcpy
 //void * _RobMemcpy (void * destPtr, void const * sourcePtr, size_t size);
 
+void rob_wait_play (const char * pSequence);
 void rob_wait_play_from_program_space (const char * pSequence);
 void rob_lcd_init_printf (void);
 void rob_clear (void);
