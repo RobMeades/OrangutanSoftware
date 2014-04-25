@@ -60,7 +60,8 @@ void vTaskProcessing (void *pvParameters)
             {
                 if (codedCommand.buffer[CODED_COMMAND_ID_POS] != 'E' &&
                     codedCommand.buffer[CODED_COMMAND_ID_POS] != 'A' &&
-                    codedCommand.buffer[CODED_COMMAND_ID_POS] != 'T' )
+                    codedCommand.buffer[CODED_COMMAND_ID_POS] != 'T' &&
+                    codedCommand.buffer[CODED_COMMAND_ID_POS] != '!')
                 {
                     /* Send the command off to the command queue */
                     /* For some very weird reason the xQueueSend function here never, ever,
@@ -87,6 +88,10 @@ void vTaskProcessing (void *pvParameters)
                     if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'E')
                     {
                         echo = true;
+                        sendSerialString (OK_STRING, sizeof (OK_STRING));
+                    }
+                    else if (codedCommand.buffer[CODED_COMMAND_ID_POS] == '!')
+                    {
                         sendSerialString (OK_STRING, sizeof (OK_STRING));
                     }
                     else if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'A')
@@ -139,6 +144,7 @@ void vTaskProcessing (void *pvParameters)
  * [#x] E[cho]
  * [#x] A"[]"
  * [#x] T"[]"
+ * [#x] !
  *
  * Format of coded command is:
  * - index (1 byte 0-255),
@@ -294,6 +300,14 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                     commandEncodeState = COMMAND_ENCODE_STATE_FINISHED;
                 }
                 break;
+            case '!':
+                if ((commandEncodeState == COMMAND_ENCODE_STATE_NULL || commandEncodeState == COMMAND_ENCODE_STATE_GET_ID) &&
+                    (pCodedCommand->buffer[CODED_COMMAND_ID_POS] == 0))
+                {
+                    pCodedCommand->buffer[CODED_COMMAND_ID_POS] = y;
+                    commandEncodeState = COMMAND_ENCODE_STATE_FINISHED;
+                }
+                break;
             case ' ': /* space just moves the state on */
                 if (commandEncodeState == COMMAND_ENCODE_STATE_GET_INDEX)
                 {
@@ -435,8 +449,8 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
             }
         }
 
-        /* None of Stop, Halt, Mark, Distance, Velocity, Progress or Info can have values or units */
-        if (id == 'S' || id == 'H' || id == 'M' || id == 'D' || id == 'V' || id == 'P' || id == 'I')
+        /* None of Stop, Halt, Mark, Distance, Velocity, Progress, Info or "!" can have values or units */
+        if (id == 'S' || id == 'H' || id == 'M' || id == 'D' || id == 'V' || id == 'P' || id == 'I' || id == '!')
         {
             if (value > 0 || units > 0)
             {

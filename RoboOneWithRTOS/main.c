@@ -24,6 +24,7 @@
  * Echo
  * A"xxx"
  * T"xxx"
+ * !
  *
  * Commands can be single letters, we only look for a numeric character, Forwards and
  * Backwards can be in units of metres or metres per second, turns can be 90 degrees
@@ -34,10 +35,10 @@
  * status information.  Echo is used purely for testing and causes every received
  * command to be echoed without action (until reset). A is followed immediately
  * by a quoted Alphanumeric string that will be shown on the LCD display. T is
- * like A but the contents of the string is a Tune string.  If a command is
- * prefixed by # and a number then the responses from the controller are
- * prefixed with the same tag (so that sequences of commands can be sent and the
- * responses matched up).
+ * like A but the contents of the string is a Tune string.  "!" just causes an
+ * OK response.  If a command is prefixed by # and a number then the responses
+ * from the controller are prefixed with the same tag (so that sequences of
+ * commands can be sent and the responses matched up).
  *
  * The main responses sent for each command are:
  *
