@@ -148,7 +148,7 @@ void vTaskProcessing (void *pvParameters)
  *
  * Format of coded command is:
  * - index (1 byte 0-255),
- * - ID (1 byte from FBRLSHMDVPIA),
+ * - ID (1 byte from FBRLSHMDVPIEAT!),
  * - value (2 bytes) and it is actually converted to cm or cm/s here, with the higher nibbles to the left,
  *   in the case of A/T this is the position of the start of the printable string,
  * - units (1 byte from S for speed D for distance), in the case of A/T this contains the string length. */
@@ -178,6 +178,7 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
         switch (y)
         {
             case '#':
+            {
                 if (commandEncodeState == COMMAND_ENCODE_STATE_NULL)
                 {
                     commandEncodeState = COMMAND_ENCODE_STATE_GET_INDEX;
@@ -190,7 +191,8 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                 {
                     success = false; /* # is not a valid character elsewhere */
                 }
-                break;
+            }            
+            break;
             case '0':
             case '1':
             case '2':
@@ -201,6 +203,7 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
             case '7':
             case '8':
             case '9':
+            {
                 if (commandEncodeState == COMMAND_ENCODE_STATE_GET_INDEX || commandEncodeState == COMMAND_ENCODE_STATE_GET_VALUE_MANTISSA)
                 {
                     mantissa = 10 * mantissa + (y - '0');
@@ -226,8 +229,10 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                 {
                     success = false; /* numbers are not valid characters elsewhere */
                 }
-                break;
+            }            
+            break;
             case '.':
+            {
                 if (commandEncodeState == COMMAND_ENCODE_STATE_GET_VALUE_MANTISSA)
                 {
                     commandEncodeState = COMMAND_ENCODE_STATE_GET_VALUE_FRACTIONAL;
@@ -240,7 +245,8 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                 {
                     success = false; /* full stops are not valid characters elsewhere */
                 }
-                break;
+            }            
+            break;
             case 'f':
             case 'F':
             case 'b':
@@ -249,38 +255,46 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
             case 'R':
             case 'l':
             case 'L':
+            {
                 if ((commandEncodeState == COMMAND_ENCODE_STATE_NULL || commandEncodeState == COMMAND_ENCODE_STATE_GET_ID) &&
                     (pCodedCommand->buffer[CODED_COMMAND_ID_POS] == 0))
                 {
                     pCodedCommand->buffer[CODED_COMMAND_ID_POS] = y & ~ 0x20; /* AND with inverse of 0x20 to convert to upper case */
                     commandEncodeState = COMMAND_ENCODE_STATE_GET_ID; /* Ensure that we are at "Get Id" here as otherwise it's confusing */
                 }
-                break;
+            }            
+            break;
             case 'a':
             case 'A':
             case 't':
             case 'T':
+            {
                 if ((commandEncodeState == COMMAND_ENCODE_STATE_NULL || commandEncodeState == COMMAND_ENCODE_STATE_GET_ID) &&
                     (pCodedCommand->buffer[CODED_COMMAND_ID_POS] == 0))
                 {
                     pCodedCommand->buffer[CODED_COMMAND_ID_POS] = y & ~ 0x20; /* AND with inverse of 0x20 to convert to upper case */
                     commandEncodeState = COMMAND_ENCODE_STATE_GET_OPENING_QUOTE;
                 }
-                break;
+            }            
+            break;
             case 's':
             case 'S':
+            {
                 if (commandEncodeState == COMMAND_ENCODE_STATE_GET_UNITS)
                 {
                     pCodedCommand->buffer[CODED_COMMAND_UNITS_POS] = UNITS_ARE_SPEED; /* If there's an 'S' then this is m/s so units are distance */
                 }
-                /* Deliberate fall-through - S is also a valid ID */
+            }            
+            /* Deliberate fall-through - S is also a valid ID */
             case 'm':
             case 'M':
+            {
                 if (commandEncodeState == COMMAND_ENCODE_STATE_GET_UNITS && pCodedCommand->buffer[CODED_COMMAND_UNITS_POS] != UNITS_ARE_SPEED) /* Prevent the fall-through overwriting the 'D' */
                 {
                     pCodedCommand->buffer[CODED_COMMAND_UNITS_POS] = UNITS_ARE_DISTANCE; /* If there's an 'M' then this is metres unless it later becomes m/s */
                 }
-                /* Deliberate fall-through - M is also a valid ID */
+            }            
+            /* Deliberate fall-through - M is also a valid ID */
             case 'h':
             case 'H':
             case 'd':
@@ -293,22 +307,27 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
             case 'i':
             case 'E':
             case 'e':
+            {
                 if ((commandEncodeState == COMMAND_ENCODE_STATE_NULL || commandEncodeState == COMMAND_ENCODE_STATE_GET_ID) &&
                     (pCodedCommand->buffer[CODED_COMMAND_ID_POS] == 0))
                 {
                     pCodedCommand->buffer[CODED_COMMAND_ID_POS] = y & ~ 0x20; /* AND with inverse of 0x20 to convert to upper case */
                     commandEncodeState = COMMAND_ENCODE_STATE_FINISHED;
                 }
-                break;
+            }            
+            break;
             case '!':
+            {
                 if ((commandEncodeState == COMMAND_ENCODE_STATE_NULL || commandEncodeState == COMMAND_ENCODE_STATE_GET_ID) &&
                     (pCodedCommand->buffer[CODED_COMMAND_ID_POS] == 0))
                 {
                     pCodedCommand->buffer[CODED_COMMAND_ID_POS] = y;
                     commandEncodeState = COMMAND_ENCODE_STATE_FINISHED;
                 }
-                break;
+            }            
+            break;
             case ' ': /* space just moves the state on */
+            {
                 if (commandEncodeState == COMMAND_ENCODE_STATE_GET_INDEX)
                 {
                     if (mantissa > 99)
@@ -334,8 +353,10 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                 {
                     /* do nothing */
                 }
-                break;
+            }            
+            break;
             case '"':
+            {
                 if (commandEncodeState == COMMAND_ENCODE_STATE_GET_OPENING_QUOTE)
                 {
                     commandEncodeState = COMMAND_ENCODE_STATE_GET_STRING;
@@ -354,13 +375,18 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                         success = false; /* " is not a valid character elsewhere */
                     }
                 }
-                break;
+            }            
+            break;
             case 0:
+            {
                 commandEncodeState = COMMAND_ENCODE_STATE_FINISHED; /* Stop if we hit a null, or an LF */
-                break;
+            }            
+            break;
             default:
+            {
                 /* Do nothing - all other characters can just be discarded */
-                break;
+            }            
+            break;
         }
     }
 
@@ -449,7 +475,7 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
             }
         }
 
-        /* None of Stop, Halt, Mark, Distance, Velocity, Progress, Info or "!" can have values or units */
+        /* None of Stop, Home, Mark, Distance, Velocity, Progress, Info or "!" can have values or units */
         if (id == 'S' || id == 'H' || id == 'M' || id == 'D' || id == 'V' || id == 'P' || id == 'I' || id == '!')
         {
             if (value > 0 || units > 0)
