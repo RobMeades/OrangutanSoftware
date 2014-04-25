@@ -10,6 +10,7 @@ filenameAndFullPath = ""
 ;Note that this is not the full string, it needs the filename added on the end later
 avrdudeInvoke = "avrdude -p m1284p -P /dev/OrangutanUSB -c avrispv2 -U flash:w:"
 deleteFileOnDevice = "rm "
+logOutAtEnd = 1
 messageBoxTitle = "Write To Orangutan Via Pi"
 
 ;Assume we will fail (files are written to the same directory as this file)
