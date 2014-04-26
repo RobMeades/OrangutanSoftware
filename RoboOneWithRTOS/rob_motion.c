@@ -17,9 +17,61 @@
 #include <queue.h>
 #include <pololu/orangutan.h>
 
+#define MINIMUM_USEFUL_SPEED_O_UNITS 60
+#define MAX_SPEED_O_UNITS 255
+#define METRES_TO_TIME_FACTOR 7
+#define CM_S_TO_O_UNITS_FACTOR 3
+#define MOTOR1_TO_MOTOR2_OFFSET 5 /* Positive if MOTOR2 (right) is weaker than MOTOR1 (left) */
+
+/* - GLOBALS -------------------------------------------------------------------------- */
+
+static int gSetSpeedOUnits = MINIMUM_USEFUL_SPEED_O_UNITS;
+
 /* - STATIC FUNCTIONS ----------------------------------------------------------------- */
 
-/* Convert the two byte value field into an SInt16 */
+/* Offset the motor speed of motor1 to balance things out */
+static int motor1Speed (int speed)
+{
+    if (speed >= 0)
+    {
+        if (speed <= MAX_SPEED_O_UNITS - MOTOR1_TO_MOTOR2_OFFSET)
+        {
+            speed += MOTOR1_TO_MOTOR2_OFFSET;
+        }
+    }
+    else
+    {
+        if (speed >= -MAX_SPEED_O_UNITS + MOTOR1_TO_MOTOR2_OFFSET)
+        {
+            speed -= MOTOR1_TO_MOTOR2_OFFSET;
+        }
+    }
+
+    return speed;
+}
+
+/* Offset the motor speed of motor2 to balance things out */
+static int motor2Speed (int speed)
+{
+    if (speed >= 0)
+    {
+        if (speed > MAX_SPEED_O_UNITS - MOTOR1_TO_MOTOR2_OFFSET)
+        {
+            speed -= MOTOR1_TO_MOTOR2_OFFSET;
+        }
+    }
+    else
+    {
+        if (speed < -MAX_SPEED_O_UNITS + MOTOR1_TO_MOTOR2_OFFSET)
+        {
+            speed += MOTOR1_TO_MOTOR2_OFFSET;
+        }
+    }
+
+    return speed;
+}
+
+/* Convert the two byte value field into an int */
 static int convertValueToInt (unsigned char *pValueArray)
 {
     int value;
@@ -33,35 +85,78 @@ static int convertValueToInt (unsigned char *pValueArray)
 static bool stopNow (void)
 {
     rob_print_from_program_space (PSTR ("STOP."));
-    x2_set_motor (JOINT_MOTOR, BRAKE_LOW, 0);
+    x2_set_motor (MOTOR1, BRAKE_LOW, 0);
+    x2_set_motor (MOTOR2, BRAKE_LOW, 0);
 
     return true;
 }
 
 /* Move forwards or backwards */
-static bool setDistance (int distance)
+static bool moveDistance (unsigned int distanceM, bool isForwards)
 {
-    rob_print_long (distance);
-    rob_print_from_program_space (PSTR (" CM."));
-    x2_set_motor (JOINT_MOTOR, ACCEL_DRIVE, distance);
+    int speedOUnits = gSetSpeedOUnits;
+    int time10ms;
+
+    time10ms = (distanceM / speedOUnits) * 100 * METRES_TO_TIME_FACTOR;
+
+    if (!isForwards)
+    {
+        speedOUnits = -speedOUnits;
+    }
+
+    rob_print_from_program_space (PSTR ("~"));
+    rob_print_long (time10ms / 100);
+    rob_print_from_program_space (PSTR (" s @"));
+    rob_print_long (speedOUnits / CM_S_TO_O_UNITS_FACTOR);
+    rob_print_from_program_space (PSTR (" cm/s"));
+    rob_print_from_program_space (PSTR (" ("));
+    rob_print_long (speedOUnits);
+    rob_print_from_program_space (PSTR (" )"));
+
+    x2_set_motor (MOTOR1, ACCEL_DRIVE, motor2Speed (speedOUnits));
+    x2_set_motor (MOTOR2, ACCEL_DRIVE, motor1Speed (speedOUnits));
+
+    vTaskDelay (time10ms / portTICK_RATE_MS);
+
+    stopNow();
 
     return true;
 }
 
-/* Set speed (forward or reverse) */
-static bool setSpeed (int speed)
+/* Set speed (forward or backward) */
+static bool setSpeed (unsigned int speedCmS)
 {
-    rob_print_long (speed);
-    rob_print_from_program_space (PSTR (" CM/S."));
-    x2_set_motor (JOINT_MOTOR, ACCEL_DRIVE, speed);
+   int speedOUnits;
+
+    speedOUnits = speedCmS * CM_S_TO_O_UNITS_FACTOR;
+
+    if (speedOUnits > MAX_SPEED_O_UNITS)
+    {
+        speedOUnits = MAX_SPEED_O_UNITS;
+    }
+    else
+    {
+        if (speedOUnits < -MAX_SPEED_O_UNITS)
+        {
+            speedOUnits = -MAX_SPEED_O_UNITS;
+        }
+    }
+
+    gSetSpeedOUnits = speedOUnits;
+
+    rob_print_from_program_space (PSTR ("Set "));
+    rob_print_unsigned_long (speedOUnits / CM_S_TO_O_UNITS_FACTOR);
+    rob_print_from_program_space (PSTR (" cm/s ("));
+    rob_print_unsigned_long (speedOUnits);
+    rob_print_from_program_space (PSTR (")"));
 
     return true;
 }
 
 /* Turn (left or right) */
-static bool turn (int angle)
+static bool turn (int degrees)
 {
-    rob_print_long (angle);
+    rob_print_long (degrees);
     rob_print_from_program_space (PSTR (" TURN."));
 
     return true;
@@ -76,6 +171,7 @@ extern xQueueHandle xCommandQueue;
 void vTaskMotion (void *pvParameters)
 {
     bool success;
+    bool isForwards;
     CodedCommand codedCommand;
     portBASE_TYPE xStatus;
 
@@ -89,6 +185,7 @@ void vTaskMotion (void *pvParameters)
 
         /* Print out what command we're going to execute */
         rob_lcd_goto_xy (0, 1);
+        rob_print_from_program_space (PSTR ("CMD: "));
         if (codedCommand.buffer[CODED_COMMAND_INDEX_POS] != CODED_COMMAND_INDEX_UNUSED)
         {
             rob_print_character ('#');
@@ -103,10 +200,9 @@ void vTaskMotion (void *pvParameters)
             rob_print_character (' ');
             rob_print_character (codedCommand.buffer[CODED_COMMAND_UNITS_POS]);
         }
-        rob_print_character (':');
-        rob_print_character (' ');
 
-        /* Now do it*/
+        rob_lcd_goto_xy (0, 2);
+        /* Now do it */
         switch (codedCommand.buffer[CODED_COMMAND_ID_POS])
         {
             case 'F': /* Forwards */
@@ -114,19 +210,20 @@ void vTaskMotion (void *pvParameters)
             {
                 int value = convertValueToInt (&codedCommand.buffer[CODED_COMMAND_VALUE_POS]);
 
+                isForwards = true;
                 if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'B')
                 {
-                    value = -value;
+                    isForwards = false;
                 }
 
                 switch (codedCommand.buffer[CODED_COMMAND_UNITS_POS])
                 {
                     case 'D': /* Move forward based on distance */
                     {
-                        success = setDistance (value);
+                        success = moveDistance (value, isForwards);
                     }
                     break;
-                    case 'S': /* Move forward based on speed */
+                    case 'S': /* Set the speed */
                     {
                         success = setSpeed (value);
                     }
@@ -159,32 +256,32 @@ void vTaskMotion (void *pvParameters)
             break;
             case 'H': /* Home */
             {
-                rob_print_from_program_space (PSTR ("NOT IMPLEMENTED."));
+                rob_print_from_program_space (PSTR ("TODO."));
             }
             break;
             case 'M': /* Mark */
             {
-                rob_print_from_program_space (PSTR ("NOT IMPLEMENTED."));
+                rob_print_from_program_space (PSTR ("TODO."));
             }
             break;
             case 'D': /* Distance? */
             {
-                rob_print_from_program_space (PSTR ("NOT IMPLEMENTED."));
+                rob_print_from_program_space (PSTR ("TODO."));
             }
             break;
             case 'V': /* Velocity? */
             {
-                rob_print_from_program_space (PSTR ("NOT IMPLEMENTED."));
+                rob_print_from_program_space (PSTR ("TODO."));
             }
             break;
             case 'P': /* Progress? */
             {
-                rob_print_from_program_space (PSTR ("NOT IMPLEMENTED."));
+                rob_print_from_program_space (PSTR ("TODO."));
             }
             break;
             case 'I': /* Info? */
             {
-                rob_print_from_program_space (PSTR ("NOT IMPLEMENTED."));
+                rob_print_from_program_space (PSTR ("TODO."));
             }
             break;
             default:

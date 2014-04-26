@@ -24,8 +24,8 @@ extern "C" {
 //	#define portUSE_TIMER0                                          // portUSE_TIMER0 to use 8 bit Timer0
 //  #define portUSE_TIMER2											// portUSE_TIMER2 to use 8 bit RTC Timer2 on 1284p device
 	#define portUSE_TIMER3											// portUSE_TIMER3 to use 16 bit Timer3 on 1284p device
-    #define configTICK_RATE_HZ		( ( portTickType ) 100 )		// Use 500Hz for TIMER3. MINIMUM of 128Hz for TIMER2.
-                                                                    // Use 1000Hz to get mSec timing using TIMER3.
+    #define configTICK_RATE_HZ		( ( portTickType ) 1000 )		// Use 500Hz for TIMER3. MINIMUM of 128Hz for TIMER2.
+                                                                    // Use 1000Hz to get 10mSec resolution using TIMER3.
 
 	#define configCPU_CLOCK_HZ		( ( uint32_t ) F_CPU )			// This F_CPU variable set by Eclipse environment
     #define configTOTAL_HEAP_SIZE	( (size_t )  12000  )			// used for heap_1.c and heap2.c, and heap_4.c only (heap_3.c uses malloc() and free())

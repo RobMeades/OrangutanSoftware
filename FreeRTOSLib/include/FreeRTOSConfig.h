@@ -87,7 +87,7 @@
 #define configCHECK_FOR_STACK_OVERFLOW  2
 
 /* Timer definitions. */
-#define configUSE_TIMERS				0
+#define configUSE_TIMERS				1
 #define configTIMER_TASK_PRIORITY       ( ( unsigned portBASE_TYPE ) 7 )
 #define configTIMER_QUEUE_LENGTH        ( ( unsigned portBASE_TYPE ) 10 )
 #define configTIMER_TASK_STACK_DEPTH    configMINIMAL_STACK_SIZE
@@ -101,7 +101,6 @@
 
 /* Set the following definitions to 1 to include the API function, or zero
 to exclude the API function. */
-
 #define INCLUDE_vTaskPrioritySet		        0
 #define INCLUDE_uxTaskPriorityGet		        0
 #define INCLUDE_vTaskDelete			            0
