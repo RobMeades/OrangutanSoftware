@@ -92,6 +92,9 @@ void vTaskSensor (void *pvParameters)
                     itoa (x + 1, &(sendString[ADC_READING_STRING_LEN * x]), 10);
                     sendString[(ADC_READING_STRING_LEN * x) + 1] = ':';
                     itoa (readAdc (x), &(sendString[(ADC_READING_STRING_LEN * x) + 2]), 10);
+                    
+                    /* Overwrite the null terminator that itoa() puts in with a space */
+                    sendString[RobStrlen (sendString)] = ' ';
                 }
                 sendString[sizeof (sendString) - 1] = 0; /* Add terminator */
                 sendSerialString (sendString, sizeof (sendString));
