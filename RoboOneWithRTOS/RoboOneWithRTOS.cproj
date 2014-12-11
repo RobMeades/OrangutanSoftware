@@ -2,7 +2,7 @@
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectVersion>6.1</ProjectVersion>
+    <ProjectVersion>6.2</ProjectVersion>
     <ToolchainName>com.Atmel.AVRGCC8.C</ToolchainName>
     <ProjectGuid>{7a2558b2-2adb-4894-aad2-dc19857b035f}</ProjectGuid>
     <avrdevice>ATmega1284P</avrdevice>
@@ -61,7 +61,7 @@
         <documentation help="" />
         <offline-documentation help="" />
         <dependencies>
-          <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.3.0" />
+          <content-extension eid="atmel.asf" uuidref="Atmel.ASF" version="3.10.1" />
         </dependencies>
       </framework-data>
     </AsfFrameworkConfig>
@@ -170,6 +170,9 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="rob_processing.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="rob_sensor.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="rob_wrappers.c">

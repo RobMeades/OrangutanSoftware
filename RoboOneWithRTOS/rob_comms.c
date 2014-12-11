@@ -85,7 +85,7 @@ void vTaskCommsTransmit (void *pvParameters)
             unsigned char bytesToSend;
 
             bytesToSend = RobStrlen (pSendString) + 1; /* +1 because strlen() doesn't include the terminator and we need to send it */
-            *(pSendString + bytesToSend - 1) = COMMAND_TERMINATOR; /* Replace the null terminator with a terminator that makes sense to a PC comms handler*/
+            *(pSendString + bytesToSend - 1) = COMMAND_TERMINATOR; /* Replace the null terminator with a terminator that makes sense to a PC comms handler */
              /* Would really prefer not to block here but background send doesn't seem to work reliably under FreeRTOS */
             rob_serial_send_blocking_usb_comm (pSendString, bytesToSend);
 
@@ -167,7 +167,7 @@ CommandString * receiveSerialCommand (void)
     return pCommandString;
 }
 
-/* Add a (null terminated) string to the transmit queue.  size must include the terminator. */
+/* Add a (null terminated) string to the transmit queue.  Size must include the terminator. */
 void sendSerialString (char * pSendString, size_t size)
 {
     char * pMalloc;

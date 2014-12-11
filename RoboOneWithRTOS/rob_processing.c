@@ -37,7 +37,8 @@ typedef enum CommandEncodeStateTag
 
 /* The queues that the processing task uses */
 extern xQueueHandle xCommsReceiveQueue;
-extern xQueueHandle xCommandQueue;
+extern xQueueHandle xMotionCommandQueue;
+extern xQueueHandle xSensorCommandQueue;
 extern xQueueHandle xCommsTransmitQueue;
 
 /* The processing task */
@@ -61,16 +62,17 @@ void vTaskProcessing (void *pvParameters)
                 if (codedCommand.buffer[CODED_COMMAND_ID_POS] != 'E' &&
                     codedCommand.buffer[CODED_COMMAND_ID_POS] != 'A' &&
                     codedCommand.buffer[CODED_COMMAND_ID_POS] != 'T' &&
-                    codedCommand.buffer[CODED_COMMAND_ID_POS] != '!')
+                    codedCommand.buffer[CODED_COMMAND_ID_POS] != '!' &&
+					codedCommand.buffer[CODED_COMMAND_ID_POS] != '*')
                 {
-                    /* Send the command off to the command queue */
+                    /* Send the command off to the motion command queue */
                     /* For some very weird reason the xQueueSend function here never, ever,
                     ** returns errQUEUE_FULL, even if the queue really is full.  To combat
                     ** this, check if there are already too many messages waiting before
                     ** sending */
-                    if (uxQueueMessagesWaiting (xCommandQueue) < COMMAND_QUEUE_SIZE)
+                    if (uxQueueMessagesWaiting (xMotionCommandQueue) < MOTION_COMMAND_QUEUE_SIZE)
                     {
-                        xStatus = xQueueSend (xCommandQueue, &codedCommand, 0);
+                        xStatus = xQueueSend (xMotionCommandQueue, &codedCommand, 0);
                     }
                     else
                     {
@@ -84,30 +86,50 @@ void vTaskProcessing (void *pvParameters)
                 }
                 else
                 {
-                    /* E, A and T are dealt with locally */
-                    if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'E')
+                    if (codedCommand.buffer[CODED_COMMAND_ID_POS] == '*')
                     {
-                        echo = true;
-                        sendSerialString (OK_STRING, sizeof (OK_STRING));
-                    }
-                    else if (codedCommand.buffer[CODED_COMMAND_ID_POS] == '!')
-                    {
-                        sendSerialString (OK_STRING, sizeof (OK_STRING));
-                    }
-                    else if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'A')
-                    {
-                        rob_lcd_goto_xy (0, 1);
-                        rob_print ((const char *) &(pCommandString[codedCommand.buffer[CODED_COMMAND_VALUE_POS]]));
-                        sendSerialString (OK_STRING, sizeof (OK_STRING));
-                    }
-                    else if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'T')
-                    {
-                        rob_wait_play ((const char *) &(pCommandString[codedCommand.buffer[CODED_COMMAND_VALUE_POS]]));
-                        sendSerialString (OK_STRING, sizeof (OK_STRING));
+                        /* Send the command off to the sensor command queue */
+						if (uxQueueMessagesWaiting (xSensorCommandQueue) < SENSOR_COMMAND_QUEUE_SIZE)
+						{
+							xStatus = xQueueSend (xSensorCommandQueue, &codedCommand, 0);
+						}
+						else
+						{
+							xStatus  = errQUEUE_FULL;
+						}
+
+						if (xStatus != pdPASS)
+						{
+							sendSerialString (BUSY_STRING, sizeof (BUSY_STRING));
+						}
                     }
                     else
                     {
-                        ASSERT_ALWAYS_STRING ("Only IDs E, A and T are handled locally.");
+                        /* E, !, A and T are dealt with locally */
+                        if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'E')
+                        {
+                            echo = true;
+                            sendSerialString (OK_STRING, sizeof (OK_STRING));
+                        }
+                        else if (codedCommand.buffer[CODED_COMMAND_ID_POS] == '!')
+                        {
+                            sendSerialString (OK_STRING, sizeof (OK_STRING));
+                        }
+                        else if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'A')
+                        {
+                            rob_lcd_goto_xy (0, 1);
+                            rob_print ((const char *) &(pCommandString[codedCommand.buffer[CODED_COMMAND_VALUE_POS]]));
+                            sendSerialString (OK_STRING, sizeof (OK_STRING));
+                        }
+                        else if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'T')
+                        {
+                            rob_wait_play ((const char *) &(pCommandString[codedCommand.buffer[CODED_COMMAND_VALUE_POS]]));
+                            sendSerialString (OK_STRING, sizeof (OK_STRING));
+                        }
+                        else
+                        {
+                            ASSERT_ALWAYS_STRING ("Only IDs E, !, A and T are handled locally.");
+                        }                        
                     }
                 }
             }
@@ -136,15 +158,12 @@ void vTaskProcessing (void *pvParameters)
  * [#x] L[eft] [xx]
  * [#x] S[top]
  * [#x] H[ome]
- * [#x] M[ark]
- * [#x] D[istance?]
- * [#x] V[elocity?]
- * [#x] P[rogress?]
  * [#x] I[nfo?]
  * [#x] E[cho]
  * [#x] A"[]"
  * [#x] T"[]"
  * [#x] !
+ * [#x] *
  *
  * Format of coded command is:
  * - index (1 byte 0-255),
@@ -277,15 +296,6 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                 }
             }            
             break;
-            case 's':
-            case 'S':
-            {
-                if (commandEncodeState == COMMAND_ENCODE_STATE_GET_UNITS)
-                {
-                    pCodedCommand->buffer[CODED_COMMAND_UNITS_POS] = UNITS_ARE_SPEED; /* If there's an 'S' then this is m/s so units are distance */
-                }
-            }            
-            /* Deliberate fall-through - S is also a valid ID */
             case 'm':
             case 'M':
             {
@@ -293,16 +303,19 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
                 {
                     pCodedCommand->buffer[CODED_COMMAND_UNITS_POS] = UNITS_ARE_DISTANCE; /* If there's an 'M' then this is metres unless it later becomes m/s */
                 }
-            }            
-            /* Deliberate fall-through - M is also a valid ID */
+            }
+            break;
+            case 's':
+            case 'S':
+            {
+                if (commandEncodeState == COMMAND_ENCODE_STATE_GET_UNITS)
+                {
+                    pCodedCommand->buffer[CODED_COMMAND_UNITS_POS] = UNITS_ARE_SPEED; /* If there's an 'S' then this is m/s so units are distance */
+                }
+            }
+            /* Deliberate fall-through - S is also a valid ID */
             case 'h':
             case 'H':
-            case 'd':
-            case 'D':
-            case 'v':
-            case 'V':
-            case 'p':
-            case 'P':
             case 'I':
             case 'i':
             case 'E':
@@ -317,6 +330,7 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
             }            
             break;
             case '!':
+            case '*':
             {
                 if ((commandEncodeState == COMMAND_ENCODE_STATE_NULL || commandEncodeState == COMMAND_ENCODE_STATE_GET_ID) &&
                     (pCodedCommand->buffer[CODED_COMMAND_ID_POS] == 0))
@@ -475,8 +489,8 @@ bool processCommand (char * pCommandString, CodedCommand *pCodedCommand)
             }
         }
 
-        /* None of Stop, Home, Mark, Distance, Velocity, Progress, Info or "!" can have values or units */
-        if (id == 'S' || id == 'H' || id == 'M' || id == 'D' || id == 'V' || id == 'P' || id == 'I' || id == '!')
+        /* None of Stop, Home, Info, "!" or "*" can have values or units */
+        if (id == 'S' || id == 'H' || id == 'I' || id == '!' || id == '*')
         {
             if (value > 0 || units > 0)
             {

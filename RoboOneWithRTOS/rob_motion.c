@@ -165,58 +165,59 @@ static bool turn (int degrees)
 /* - PUBLIC FUNCTIONS ----------------------------------------------------------------- */
 
 /* The queue that the motion control task uses */
-extern xQueueHandle xCommandQueue;
+extern xQueueHandle xMotionCommandQueue;
 
 /* The Motion control task */
 void vTaskMotion (void *pvParameters)
 {
     bool success;
     bool isForwards;
-    CodedCommand codedCommand;
+    CodedCommand codedMotionCommand;
     portBASE_TYPE xStatus;
 
     while (1)
     {
-        xStatus = xQueueReceive (xCommandQueue, &codedCommand, portMAX_DELAY);
+        xStatus = xQueueReceive (xMotionCommandQueue, &codedMotionCommand, portMAX_DELAY);
 
-        ASSERT_STRING (xStatus == pdPASS, "Failed to receive from command queue.");
+        ASSERT_STRING (xStatus == pdPASS, "Failed to receive from motion command queue.");
 
         success = false; /* Assume failure */
 
         /* Print out what command we're going to execute */
         rob_lcd_goto_xy (0, 1);
         rob_print_from_program_space (PSTR ("CMD: "));
-        if (codedCommand.buffer[CODED_COMMAND_INDEX_POS] != CODED_COMMAND_INDEX_UNUSED)
+        if (codedMotionCommand.buffer[CODED_COMMAND_INDEX_POS] != CODED_COMMAND_INDEX_UNUSED)
         {
             rob_print_character ('#');
-            rob_print_unsigned_long (codedCommand.buffer[CODED_COMMAND_INDEX_POS]);
+            rob_print_unsigned_long (codedMotionCommand.buffer[CODED_COMMAND_INDEX_POS]);
             rob_print_character (' ');
         }
-        rob_print_character (codedCommand.buffer[CODED_COMMAND_ID_POS]);
+        rob_print_character (codedMotionCommand.buffer[CODED_COMMAND_ID_POS]);
         rob_print_character (' ');
-        rob_print_unsigned_long ((((unsigned int) codedCommand.buffer[CODED_COMMAND_VALUE_POS]) << 8) + codedCommand.buffer[CODED_COMMAND_VALUE_POS + 1]);
-        if (codedCommand.buffer[CODED_COMMAND_UNITS_POS] != 0)
+        rob_print_unsigned_long ((((unsigned int) codedMotionCommand.buffer[CODED_COMMAND_VALUE_POS]) << 8) + codedMotionCommand.buffer[CODED_COMMAND_VALUE_POS + 1]);
+        if (codedMotionCommand.buffer[CODED_COMMAND_UNITS_POS] != 0)
         {
             rob_print_character (' ');
-            rob_print_character (codedCommand.buffer[CODED_COMMAND_UNITS_POS]);
+            rob_print_character (codedMotionCommand.buffer[CODED_COMMAND_UNITS_POS]);
         }
 
         rob_lcd_goto_xy (0, 2);
+		
         /* Now do it */
-        switch (codedCommand.buffer[CODED_COMMAND_ID_POS])
+        switch (codedMotionCommand.buffer[CODED_COMMAND_ID_POS])
         {
             case 'F': /* Forwards */
             case 'B': /* Backwards */
             {
-                int value = convertValueToInt (&codedCommand.buffer[CODED_COMMAND_VALUE_POS]);
+                int value = convertValueToInt (&codedMotionCommand.buffer[CODED_COMMAND_VALUE_POS]);
 
                 isForwards = true;
-                if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'B')
+                if (codedMotionCommand.buffer[CODED_COMMAND_ID_POS] == 'B')
                 {
                     isForwards = false;
                 }
 
-                switch (codedCommand.buffer[CODED_COMMAND_UNITS_POS])
+                switch (codedMotionCommand.buffer[CODED_COMMAND_UNITS_POS])
                 {
                     case 'D': /* Move forward based on distance */
                     {
@@ -230,7 +231,7 @@ void vTaskMotion (void *pvParameters)
                     break;
                     default:
                     {
-                        ASSERT_ALWAYS_PARAM (codedCommand.buffer[CODED_COMMAND_UNITS_POS]);
+                        ASSERT_ALWAYS_PARAM (codedMotionCommand.buffer[CODED_COMMAND_UNITS_POS]);
                     }
                     break;
                 }
@@ -239,9 +240,9 @@ void vTaskMotion (void *pvParameters)
             case 'R': /* Right */
             case 'L': /* Left */
             {
-                int value = convertValueToInt (&codedCommand.buffer[CODED_COMMAND_VALUE_POS]);
+                int value = convertValueToInt (&codedMotionCommand.buffer[CODED_COMMAND_VALUE_POS]);
 
-                if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'L')
+                if (codedMotionCommand.buffer[CODED_COMMAND_ID_POS] == 'L')
                 {
                     value = -value;
                 }
@@ -259,26 +260,6 @@ void vTaskMotion (void *pvParameters)
                 rob_print_from_program_space (PSTR ("TODO."));
             }
             break;
-            case 'M': /* Mark */
-            {
-                rob_print_from_program_space (PSTR ("TODO."));
-            }
-            break;
-            case 'D': /* Distance? */
-            {
-                rob_print_from_program_space (PSTR ("TODO."));
-            }
-            break;
-            case 'V': /* Velocity? */
-            {
-                rob_print_from_program_space (PSTR ("TODO."));
-            }
-            break;
-            case 'P': /* Progress? */
-            {
-                rob_print_from_program_space (PSTR ("TODO."));
-            }
-            break;
             case 'I': /* Info? */
             {
                 rob_print_from_program_space (PSTR ("TODO."));
@@ -286,7 +267,7 @@ void vTaskMotion (void *pvParameters)
             break;
             default:
             {
-                ASSERT_ALWAYS_PARAM (codedCommand.buffer[CODED_COMMAND_ID_POS]);
+                ASSERT_ALWAYS_PARAM (codedMotionCommand.buffer[CODED_COMMAND_ID_POS]);
             }
             break;
         }

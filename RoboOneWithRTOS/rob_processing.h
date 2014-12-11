@@ -8,7 +8,7 @@
  * Author: Rob Meades
  */
 
-#define CODED_COMMAND_SIZE 5 /* The number of characters in a coded-up command */
+#define CODED_COMMAND_SIZE 5 /* The number of characters in a coded-up motion command */
 
 #define CODED_COMMAND_INDEX_POS     0
 #define CODED_COMMAND_ID_POS        CODED_COMMAND_INDEX_POS + 1
