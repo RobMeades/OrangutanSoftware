@@ -23,11 +23,37 @@
 /* The number of ADCS to read when the read command comes in */
 #define MAX_NUM_ADCS 6
 
-/* The string length of one reading from an ADC (NOT including terminator), intended as "x:yyyy ",
- * where x is the channel number (single ASCII digit) and yyyy is the reading in millivolts. */
+/* The string length of one reading from an ADC (NOT including terminator), intended as "xx:yyyy ",
+ * where xx is the sensor string and yyyy is the distance in cm. */
 #define ADC_READING_STRING_LEN 7
 
+/* The string length of the sensor string. */
+#define SENSOR_STRING_LEN 2
+
+/* The "nothing there" string */
+#define NOTHING_THERE_STRING ":    "
+#define NOTHING_THERE_STRING_LEN 5 /* Not including terminator */
+
 /* - GLOBALS -------------------------------------------------------------------------- */
+
+/* - STATIC VARIABLES ----------------------------------------------------------------- */
+
+/* Map the character string to a given sensor.
+ * They are arranged as follows around the robot:
+ *               FF (1)
+ *              ________
+ *      FL (2) |        | FR (4)
+ *             |        |
+ *             |        |
+ *             |        |
+ *      BL (3) |________| BR (5)
+ *               BB (6)
+ *
+ * Where FF is Front, FL Front Left, FR Front Right,
+ * BL Back Left, BR Back Right and BB is back.
+ */
+
+static const char * channelToString[] = {"FF", "FL", "BL", "FR", "BR", "BB"};
 
 /* - STATIC FUNCTIONS ----------------------------------------------------------------- */
 
@@ -42,6 +68,39 @@ static void calibrateAdcs (void)
 static unsigned int readAdc (unsigned char channel)
 {
     return analog_read_average_millivolts (channel, NUM_ADC_SAMPLES);
+}
+
+/* Determine if an object has been detected.  10 mV
+ * is the minimum reading, 300 mV equates to a distance of
+ * 40 cm, 256 millivolts is 50 cm, so use that. */
+static bool objectDetected (unsigned int millivolts)
+{
+    bool detected = false;
+    
+    if (millivolts > 256)
+    {
+        detected = true;
+    }
+    
+    return detected;
+}
+
+/* Convert an ADC reading into a distance in cm.
+ * From the Sharp GP2Y0A41SK0F data sheet, the sensors can 
+ * measure from 40 cm to 3.5 cm with a linear response, which
+ * I calculate to be V = 12.8 * (1 / (distance in cm)).  This works
+ * for voltages up to 3 volts (equating to a distance of 3.5 cm).
+ * Below about 0.3 volts there is nothing there. */
+static unsigned int voltageToDistance (unsigned int millivolts)
+{
+    unsigned int distance = 1280; /* Equivalent to 10 mV, which is about the minimum reading */
+    
+    if (millivolts > 10)
+    {        
+        distance = 12800 / (millivolts);
+    }
+    
+    return distance;
 }
 
 /* - PUBLIC FUNCTIONS ----------------------------------------------------------------- */
@@ -88,10 +147,18 @@ void vTaskSensor (void *pvParameters)
                 calibrateAdcs();
                 for (x = 0; x < MAX_NUM_ADCS; x++)
                 {
-                    /* Write something like "2:4998 " (for ADC 2 of 6, voltage reading 4998 mV)*/
-                    itoa (x + 1, &(sendString[ADC_READING_STRING_LEN * x]), 10);
-                    sendString[(ADC_READING_STRING_LEN * x) + 1] = ':';
-                    itoa (readAdc (x), &(sendString[(ADC_READING_STRING_LEN * x) + 2]), 10);
+                    unsigned int milliVolts;
+                    
+                    /* Write something like "FL:40  " (for ADC 2 of 6 (which is Front Left), object detected at 40 cm),
+                       or "FL:    " if nothing is there. */
+                    memcpy (&sendString[ADC_READING_STRING_LEN * x], channelToString[x], SENSOR_STRING_LEN);
+                    memcpy (&sendString[(ADC_READING_STRING_LEN * x) + SENSOR_STRING_LEN], NOTHING_THERE_STRING, NOTHING_THERE_STRING_LEN);
+                    
+                    milliVolts = readAdc (x);
+                    if (objectDetected (milliVolts))
+                    {
+                        itoa (voltageToDistance (milliVolts), &(sendString[(ADC_READING_STRING_LEN * x) + SENSOR_STRING_LEN + 1]), 10); /* +1 to leave the ':' there */
+                    }                    
                     
                     /* Overwrite the null terminator that itoa() puts in with a space */
                     sendString[RobStrlen (sendString)] = ' ';
