@@ -11,6 +11,7 @@
 #include <string.h>
 #include <rob_system.h>
 #include <rob_comms.h>
+#include <rob_home.h>
 #include <rob_processing.h>
 #include <rob_wrappers.h>
 
@@ -39,6 +40,7 @@ typedef enum CommandEncodeStateTag
 extern xQueueHandle xCommsReceiveQueue;
 extern xQueueHandle xMotionCommandQueue;
 extern xQueueHandle xSensorCommandQueue;
+extern xQueueHandle xHomeEventQueue;
 extern xQueueHandle xCommsTransmitQueue;
 
 /* The processing task */
@@ -63,7 +65,8 @@ void vTaskProcessing (void *pvParameters)
                     codedCommand.buffer[CODED_COMMAND_ID_POS] != 'A' &&
                     codedCommand.buffer[CODED_COMMAND_ID_POS] != 'T' &&
                     codedCommand.buffer[CODED_COMMAND_ID_POS] != '!' &&
-					codedCommand.buffer[CODED_COMMAND_ID_POS] != '*')
+					codedCommand.buffer[CODED_COMMAND_ID_POS] != '*' &&
+					codedCommand.buffer[CODED_COMMAND_ID_POS] != 'H')
                 {
                     /* Send the command off to the motion command queue */
                     /* For some very weird reason the xQueueSend function here never, ever,
@@ -105,7 +108,7 @@ void vTaskProcessing (void *pvParameters)
                     }
                     else
                     {
-                        /* E, !, A and T are dealt with locally */
+                        /* E, !, A, T and H are dealt with locally */
                         if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'E')
                         {
                             echo = true;
@@ -126,10 +129,28 @@ void vTaskProcessing (void *pvParameters)
                             rob_wait_play ((const char *) &(pCommandString[codedCommand.buffer[CODED_COMMAND_VALUE_POS]]));
                             sendSerialString (OK_STRING, sizeof (OK_STRING));
                         }
+                        else if (codedCommand.buffer[CODED_COMMAND_ID_POS] == 'H')
+                        {
+                            if (uxQueueMessagesWaiting (xHomeEventQueue) < HOME_EVENT_QUEUE_SIZE)
+                            {
+                                HomeEvent event;
+                                event.type = HOME_START_EVENT;
+                                xStatus = xQueueSend (xHomeEventQueue, &event, 0);
+                            }
+                            else
+                            {
+                                xStatus  = errQUEUE_FULL;
+                            }
+
+                            if (xStatus != pdPASS)
+                            {
+                                sendSerialString (BUSY_STRING, sizeof (BUSY_STRING));
+                            }
+                        }
                         else
                         {
-                            ASSERT_ALWAYS_STRING ("Only IDs E, !, A and T are handled locally.");
-                        }                        
+                            ASSERT_ALWAYS_STRING ("Only IDs E, !, A, T and H are handled locally.");
+                        }
                     }
                 }
             }

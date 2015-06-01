@@ -166,6 +166,33 @@
     <Compile Include="rob_comms.c">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="rob_home.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="rob_home_state_failed.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="rob_home_state_fine_alignment.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="rob_home_state_init.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="rob_home_state_machine.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="rob_home_state_machine_events.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="rob_home_state_rough_alignment.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="rob_home_state_stop.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="rob_home_state_travel.c">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="rob_motion.c">
       <SubType>compile</SubType>
     </Compile>

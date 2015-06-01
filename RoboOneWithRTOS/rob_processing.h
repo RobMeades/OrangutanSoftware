@@ -1,4 +1,4 @@
-/* Comms - comms part of an application for the Pololu Orangutan X2
+/* Processing - processing part of an application for the Pololu Orangutan X2
  *
  * This application uses the Pololu AVR C/C++ Library.  For help, see:
  * -User's guide: http://www.pololu.com/docs/0J20

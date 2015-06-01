@@ -40,18 +40,6 @@
  *
  * OK
  * Error (potentially followed by more informative text)
- *
- * The response to the Distance? query is
- *
- * x.xx metres
- *
- * The response to the Velocity? query is
- *
- * Forwards/Backwards x.xx m/s
- *
- * The response to the Progress? query is to return the command in progress, e.g.
- *
- * Home
  */
 
 #include <rob_system.h>
@@ -60,6 +48,7 @@
 #include <rob_processing.h>
 #include <rob_motion.h>
 #include <rob_sensor.h>
+#include <rob_home.h>
 
 #include <FreeRTOS.h>
 #include <task.h>
@@ -84,6 +73,9 @@ xQueueHandle xMotionCommandQueue;
 
 /* Queue for sensor commands */
 xQueueHandle xSensorCommandQueue;
+
+/* Queue for home state machine events */
+xQueueHandle xHomeEventQueue;
 
 /* - STATIC FUNCTIONS ----------------------------------------------------------------- */
 
@@ -121,15 +113,18 @@ int main()
         ASSERT_STRING (xMotionCommandQueue, "Could not create xMotionCommandQueue");
         xSensorCommandQueue = xQueueCreate (SENSOR_COMMAND_QUEUE_SIZE, sizeof (CodedCommand));
         ASSERT_STRING (xSensorCommandQueue, "Could not create xSensorCommandQueue");
+        xHomeEventQueue = xQueueCreate (HOME_EVENT_QUEUE_SIZE, sizeof (HomeEvent));
+        ASSERT_STRING (xHomeEventQueue, "Could not create xHomeEventQueue");
         xCommsTransmitQueue = xQueueCreate (COMMS_TRANSMIT_QUEUE_SIZE, sizeof (char *));
         ASSERT_STRING (xCommsTransmitQueue, "Could not create xCommsTransmitQueue");
 
         /* Create the tasks */
         xTaskCreate (vTaskMotion, (signed char * const) "MotionTask", 500, PNULL, 1, NULL);
-        xTaskCreate (vTaskSensor, (signed char * const) "SensorTask", 500, PNULL, 2, NULL); /* Higher than motion so that we don't bump into things */
-        xTaskCreate (vTaskProcessing, (signed char * const) "ProcessingTask", 500, PNULL, 3, NULL); /* Higher than motion so that we can interrupt it */
-        xTaskCreate (vTaskCommsTransmit, (signed char * const) "CommsTransmitTask", 500, PNULL, 4, NULL);
-        xTaskCreate (vTaskCommsReceive, (signed char * const) "CommsReceiveTask", 500, PNULL, 5, NULL);
+        xTaskCreate (vTaskHome, (signed char * const) "HomeTask", 500, PNULL, 2, NULL);
+        xTaskCreate (vTaskSensor, (signed char * const) "SensorTask", 500, PNULL, 3, NULL); /* Higher than motion so that we don't bump into things */
+        xTaskCreate (vTaskProcessing, (signed char * const) "ProcessingTask", 500, PNULL, 4, NULL); /* Higher than motion so that we can interrupt it */
+        xTaskCreate (vTaskCommsTransmit, (signed char * const) "CommsTransmitTask", 500, PNULL, 5, NULL);
+        xTaskCreate (vTaskCommsReceive, (signed char * const) "CommsReceiveTask", 500, PNULL, 6, NULL);
 
         /* Start the scheduler */
         vTaskStartScheduler();

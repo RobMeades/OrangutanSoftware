@@ -28,6 +28,7 @@
 
 #define MOTION_COMMAND_QUEUE_SIZE 8 /* Defined here because of queue message length checking workaround on rob_processing.c */
 #define SENSOR_COMMAND_QUEUE_SIZE 8
+#define HOME_EVENT_QUEUE_SIZE 8
 
 #define PNULL (void *) NULL
 #define ASSERT_ALWAYS_STRING(sTRING) ((assertFunc (__FUNCTION__, __LINE__, PSTR(sTRING), 0)))

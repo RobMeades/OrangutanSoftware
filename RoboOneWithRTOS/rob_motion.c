@@ -12,12 +12,13 @@
 #include <rob_wrappers.h>
 #include <rob_processing.h>
 #include <rob_comms.h>
+#include <rob_motion.h>
+
 #include <FreeRTOS.h>
 #include <task.h>
 #include <queue.h>
 #include <pololu/orangutan.h>
 
-#define MINIMUM_USEFUL_SPEED_O_UNITS 60
 #define MAX_SPEED_O_UNITS 255
 #define METRES_TO_TIME_FACTOR 7
 #define CM_S_TO_O_UNITS_FACTOR 3
@@ -28,6 +29,16 @@
 static int gSetSpeedOUnits = MINIMUM_USEFUL_SPEED_O_UNITS;
 
 /* - STATIC FUNCTIONS ----------------------------------------------------------------- */
+
+/* Convert the two byte value field into an int */
+static int convertValueToInt (unsigned char *pValueArray)
+{
+    int value;
+
+    value = (((unsigned int) *pValueArray) << 8) + *(pValueArray + 1);
+
+    return value;
+}
 
 /* Offset the motor speed of motor1 to balance things out */
 static int motor1Speed (int speed)
@@ -71,62 +82,10 @@ static int motor2Speed (int speed)
     return speed;
 }
 
-/* Convert the two byte value field into an int */
-static int convertValueToInt (unsigned char *pValueArray)
-{
-    int value;
-
-    value = (((unsigned int) *pValueArray) << 8) + *(pValueArray + 1);
-
-    return value;
-}
-
-/* Stop dead */
-static bool stopNow (void)
-{
-    rob_print_from_program_space (PSTR ("STOP."));
-    x2_set_motor (MOTOR1, BRAKE_LOW, 0);
-    x2_set_motor (MOTOR2, BRAKE_LOW, 0);
-
-    return true;
-}
-
-/* Move forwards or backwards */
-static bool moveDistance (unsigned int distanceM, bool isForwards)
-{
-    int speedOUnits = gSetSpeedOUnits;
-    int time10ms;
-
-    time10ms = (distanceM / speedOUnits) * 100 * METRES_TO_TIME_FACTOR;
-
-    if (!isForwards)
-    {
-        speedOUnits = -speedOUnits;
-    }
-
-    rob_print_from_program_space (PSTR ("~"));
-    rob_print_long (time10ms / 100);
-    rob_print_from_program_space (PSTR (" s @"));
-    rob_print_long (speedOUnits / CM_S_TO_O_UNITS_FACTOR);
-    rob_print_from_program_space (PSTR (" cm/s"));
-    rob_print_from_program_space (PSTR (" ("));
-    rob_print_long (speedOUnits);
-    rob_print_from_program_space (PSTR (" )"));
-
-    x2_set_motor (MOTOR1, ACCEL_DRIVE, motor2Speed (speedOUnits));
-    x2_set_motor (MOTOR2, ACCEL_DRIVE, motor1Speed (speedOUnits));
-
-    vTaskDelay (time10ms / portTICK_RATE_MS);
-
-    stopNow();
-
-    return true;
-}
-
 /* Set speed (forward or backward) */
 static bool setSpeed (unsigned int speedCmS)
 {
-   int speedOUnits;
+    int speedOUnits;
 
     speedOUnits = speedCmS * CM_S_TO_O_UNITS_FACTOR;
 
@@ -153,16 +112,79 @@ static bool setSpeed (unsigned int speedCmS)
     return true;
 }
 
+/* Move forwards or backwards a given distance */
+static bool moveDistance (unsigned int distanceM, bool isForwards)
+{
+    int speedOUnits = gSetSpeedOUnits;
+    int time10ms;
+
+    time10ms = (distanceM / speedOUnits) * 100 * METRES_TO_TIME_FACTOR;
+
+    if (!isForwards)
+    {
+        speedOUnits = -speedOUnits;
+    }
+
+    rob_print_from_program_space (PSTR ("~"));
+    rob_print_long (time10ms / 100);
+    rob_print_from_program_space (PSTR (" s @"));
+    rob_print_long (speedOUnits / CM_S_TO_O_UNITS_FACTOR);
+    rob_print_from_program_space (PSTR (" cm/s"));
+    rob_print_from_program_space (PSTR (" ("));
+    rob_print_long (speedOUnits);
+    rob_print_from_program_space (PSTR (" )"));
+
+    /* TODO fix this (1's and 2's swapped) */
+    x2_set_motor (MOTOR1, ACCEL_DRIVE, motor2Speed (speedOUnits));
+    x2_set_motor (MOTOR2, ACCEL_DRIVE, motor1Speed (speedOUnits));
+
+    vTaskDelay (time10ms / portTICK_RATE_MS);
+
+    stopNow();
+
+    return true;
+}
+
+/* - PUBLIC FUNCTIONS ----------------------------------------------------------------- */
+
+/* Move forwards or backwards until told to stop, tweaking left
+ * or right if required. */
+bool move (int speedOUnits, int tweakLeft, int tweakRight)
+{
+    rob_print_long (speedOUnits / CM_S_TO_O_UNITS_FACTOR);
+    rob_print_from_program_space (PSTR (" cm/s"));
+    rob_print_from_program_space (PSTR (" ("));
+    rob_print_long (speedOUnits);
+    rob_print_from_program_space (PSTR (" )"));
+    rob_print_long (tweakLeft);
+    rob_print_from_program_space (PSTR ("L "));
+    rob_print_long (tweakRight);
+    rob_print_from_program_space (PSTR ("R"));
+
+    x2_set_motor (MOTOR1, ACCEL_DRIVE, motor2Speed (speedOUnits + tweakLeft));
+    x2_set_motor (MOTOR2, ACCEL_DRIVE, motor1Speed (speedOUnits + tweakRight));
+
+    return true;
+}
+
+/* Stop dead */
+bool stopNow (void)
+{
+    rob_print_from_program_space (PSTR ("STOP."));
+    x2_set_motor (MOTOR1, BRAKE_LOW, 0);
+    x2_set_motor (MOTOR2, BRAKE_LOW, 0);
+
+    return true;
+}
+
 /* Turn (left or right) */
-static bool turn (int degrees)
+bool turn (int degrees)
 {
     rob_print_long (degrees);
     rob_print_from_program_space (PSTR (" TURN."));
 
     return true;
 }
-
-/* - PUBLIC FUNCTIONS ----------------------------------------------------------------- */
 
 /* The queue that the motion control task uses */
 extern xQueueHandle xMotionCommandQueue;

@@ -9,3 +9,10 @@
  */
 
 void vTaskMotion (void *pvParameters);
+
+/* Slower than this and it won't go */
+#define MINIMUM_USEFUL_SPEED_O_UNITS 60
+
+bool move (int speedOUnits, int tweakLeft, int tweakRight);
+bool stopNow (void);
+bool turn (int degrees);
