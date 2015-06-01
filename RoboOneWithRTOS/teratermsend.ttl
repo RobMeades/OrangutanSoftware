@@ -9,6 +9,7 @@ filename = ""
 filenameAndFullPath = ""
 ;Note that this is not the full string, it needs the filename added on the end later
 avrdudeInvoke = "avrdude -p m1284p -P /dev/OrangutanUSB -c avrispv2 -U flash:w:"
+chmod = "chmod 777 "
 deleteFileOnDevice = "rm "
 logOutAtEnd = 1
 messageBoxTitle = "Write To Orangutan Via Pi"
@@ -28,6 +29,7 @@ endif
 strconcat filenameAndFullPath filename
 strconcat avrdudeInvoke filename
 strconcat deleteFileOnDevice filename
+strconcat chmod filename
 
 strlen (filenameAndFullPath)
 if result = 0 goto usage
@@ -72,6 +74,8 @@ sendln "rz"
 ;filenameAndFullPath is the file to send with full path as given on the command line to this macro
 statusbox "Sending file to Pi..." messageBoxTitle
 zmodemsend filenameAndFullPath 1
+;set the permssions to vanilla as it seems that they can sometimes go a little odd
+sendln chmod
 ;now invoke the avrdude programmer on the far end
 statusbox "Invoking Avrdude to program Orangutan..." messageBoxTitle
 timeout = 60
