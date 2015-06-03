@@ -24,6 +24,13 @@
 #include <queue.h>
 #include <pololu/orangutan.h>
 
+/* How pins of the digital input connectors are connected */
+#define IR_DETECTOR_ENABLE_PIN  IO_D0
+#define IR_DETECTOR_FRONT_PIN   IO_D1
+#define IR_DETECTOR_RIGHT_PIN   IO_D2
+#define IR_DETECTOR_BACK_PIN    IO_D3
+#define IR_DETECTOR_LEFT_PIN    IO_D4
+
 /* - GLOBALS -------------------------------------------------------------------------- */
 
 static HomeContext gHomeContext;
@@ -32,10 +39,63 @@ static HomeContext gHomeContext;
 
 /* - STATIC FUNCTIONS ----------------------------------------------------------------- */
 
+/* Setup the pins we need to the states we need */
+static void setPins (void)
+{
+    set_digital_output (IR_DETECTOR_ENABLE_PIN, 1);
+    set_digital_input (IR_DETECTOR_RIGHT_PIN, 0);
+    set_digital_input (IR_DETECTOR_LEFT_PIN, 0);
+    set_digital_input (IR_DETECTOR_FRONT_PIN, 0);
+    set_digital_input (IR_DETECTOR_BACK_PIN, 0);    
+}
+
 /* - PUBLIC FUNCTIONS ----------------------------------------------------------------- */
 
 /* The queue that the homing task uses */
 extern xQueueHandle xHomeEventQueue;
+
+/* Count the state of the IR detectors over an integration period */
+void countIrDetector (int period10ms, unsigned int * pCountFront, unsigned int * pCountRight, unsigned int * pCountBack, unsigned int * pCountLeft)
+{
+    int x;
+    
+    if (pCountLeft != NULL)
+    {
+        *pCountLeft = 0 ;       
+    }
+    if (pCountFront != NULL)
+    {
+        *pCountFront = 0;
+    }
+    if (pCountRight != NULL)
+    {
+        *pCountRight = 0;
+    }
+    if (pCountBack != NULL)
+    {
+        *pCountBack = 0;
+    }
+    for (x = 0; x < period10ms; x++)
+    {
+        if (pCountLeft != NULL && is_digital_input_high (IR_DETECTOR_LEFT_PIN))
+        {
+            (*pCountLeft)++;
+        }
+        if (pCountFront != NULL && is_digital_input_high (IR_DETECTOR_FRONT_PIN))
+        {
+            (*pCountFront)++;
+        }
+        if (pCountRight != NULL && is_digital_input_high (IR_DETECTOR_RIGHT_PIN))
+        {            
+            (*pCountRight)++;
+        }
+        if (pCountBack != NULL && is_digital_input_high (IR_DETECTOR_BACK_PIN))
+        {
+            (*pCountBack)++;
+        }
+        vTaskDelay (1 / portTICK_RATE_MS);
+    }    
+}
 
 /* The Homing task */
 void vTaskHome (void *pvParameters)
@@ -44,6 +104,7 @@ void vTaskHome (void *pvParameters)
     HomeEvent event;
     portBASE_TYPE xStatus;
 
+    setPins();
     memset (&gHomeContext, 0, sizeof (gHomeContext));
     transitionToHomeInit (&(gHomeContext.state));
     

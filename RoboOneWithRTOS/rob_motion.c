@@ -161,6 +161,7 @@ bool move (int speedOUnits, int tweakLeft, int tweakRight)
     rob_print_long (tweakRight);
     rob_print_from_program_space (PSTR ("R"));
 
+    /* TODO fix this (1's and 2's swapped) */
     x2_set_motor (MOTOR1, ACCEL_DRIVE, motor2Speed (speedOUnits + tweakLeft));
     x2_set_motor (MOTOR2, ACCEL_DRIVE, motor1Speed (speedOUnits + tweakRight));
 

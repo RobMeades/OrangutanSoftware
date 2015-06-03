@@ -18,6 +18,8 @@
 #include <rob_home_state_travel.h>
 #include <rob_home_state_stop.h>
 
+#include <rob_motion.h> /* For move() */
+
 #include <FreeRTOS.h>
 #include <queue.h>
 
@@ -59,11 +61,26 @@
  * GLOBAL VARIABLES
  */
 static unsigned int gTravelAlignmentCount;
-static int gSpeedLeft;
-static int gSpeedRight;
+static unsigned int gLeftCount;
+static unsigned int gRightCount;
+static int gTweakLeft;
+static int gTweakRight;
 
  /* The queue that this state uses */
 extern xQueueHandle xHomeEventQueue;
+
+/*
+ * STATIC FUNCTIONS
+ */
+
+/* Do a travel integration */
+static HomeEventType doTravelIntegration (void)
+{
+    /* Do a travel integration */
+    countIrDetector (INTEGRATION_PERIOD_TRAVEL_SECS * 100, NULL, &gRightCount, NULL, &gLeftCount);
+
+    return HOME_TRAVEL_INTEGRATION_DONE_EVENT;
+}
 
 /*
  * STATIC FUNCTIONS: EVENT HANDLERS
@@ -89,21 +106,50 @@ extern xQueueHandle xHomeEventQueue;
  */
 static void eventHomeTravelIntegrationDone (HomeState *pState)
 {
+    HomeEvent event;
     portBASE_TYPE xStatus;
 
     ASSERT_PARAM (pState != PNULL, 0);
 
-    /* TODO: something with the results */
-    
-    gTravelAlignmentCount++;
-    if (gTravelAlignmentCount > MAX_COUNT_TRAVEL_ALIGNMENT)
-    {
-        HomeEvent event;
-        event.type = HOME_TRAVEL_ALIGNMENT_FAILED_EVENT;
-        xStatus = xQueueSend (xHomeEventQueue, &event, 0);
+    event.type = HOME_TRAVEL_ALIGNMENT_FAILED_EVENT;
 
-        ASSERT_PARAM (xStatus == pdPASS, (unsigned long) xStatus);
-    }
+    if (abs (gLeftCount - gRightCount) <= THRESHOLD_TRAVEL)
+    {
+        if ((abs (gTweakLeft) < MAX_TWEAK) &&
+            (abs (gTweakRight) < MAX_TWEAK))
+        {
+            if (gLeftCount > gRightCount)
+            {
+                gTweakLeft++;
+                gTweakRight--;                
+                gTravelAlignmentCount++;
+            }
+            else
+            {
+                if (gRightCount > gLeftCount)
+                {
+                    gTweakLeft--;
+                    gTweakRight++;
+                    gTravelAlignmentCount++;
+                }                
+            }            
+        }
+        
+        if (gTravelAlignmentCount <= MAX_COUNT_TRAVEL_ALIGNMENT)
+        {
+            if (move (HOME_SPEED, gTweakLeft, gTweakRight))
+            {
+                event.type = doTravelIntegration();
+            }
+            else
+            {
+                event.type = HOME_TRAVEL_ALIGNMENT_FAILED_EVENT;
+            }
+        }
+    }    
+    
+    xStatus = xQueueSend (xHomeEventQueue, &event, 0);
+    ASSERT_PARAM (xStatus == pdPASS, (unsigned long) xStatus);
 }
 
 /*
@@ -113,6 +159,7 @@ static void eventHomeTravelIntegrationDone (HomeState *pState)
 void transitionToHomeTravel (HomeState *pState)
 {
     portBASE_TYPE xStatus;
+    HomeEvent event;
 
     /* Fill in default handlers and name first */
     defaultImplementation (pState);
@@ -126,25 +173,33 @@ void transitionToHomeTravel (HomeState *pState)
     pState->pEventHomeStop = transitionToHomeStop;
 
     /* Do any entry actions */
-    gSpeedLeft = HOME_SPEED;
-    gSpeedRight = HOME_SPEED;
+    gTweakLeft = 0;
+    gTweakRight = 0;
     gTravelAlignmentCount = 0;
     pState->countTravelEntries++;
 
 #if MAX_ENTRIES_TRAVEL > 0
     if (pState->countTravelEntries > MAX_ENTRIES_TRAVEL)
     {
-        HomeEvent event;
         event.type = HOME_TRAVEL_ALIGNMENT_FAILED_EVENT;
-        xStatus = xQueueSend (xHomeEventQueue, &event, 0);
-
-        ASSERT_PARAM (xStatus == pdPASS, (unsigned long) xStatus);
     }
     else
     {
 #endif
-        /* TODO: start a travel integration */
+        /* Start moving */
+        if (move (HOME_SPEED, gTweakLeft, gTweakRight))
+        {
+            event.type = doTravelIntegration();
+        }
+        else
+        {        
+            event.type = HOME_TRAVEL_ALIGNMENT_FAILED_EVENT;
+        }
+
 #if MAX_ENTRIES_TRAVEL > 0
     }
 #endif    
+
+    xStatus = xQueueSend (xHomeEventQueue, &event, 0);
+    ASSERT_PARAM (xStatus == pdPASS, (unsigned long) xStatus);
 }

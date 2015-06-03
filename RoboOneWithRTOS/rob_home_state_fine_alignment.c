@@ -33,6 +33,9 @@
  * for each fine integration */
 #define INTEGRATION_PERIOD_FINE_ALIGNMENT_SECS 3
 
+/* The turn angle for one pulse */
+#define TURN_ANGLE_DEGREES 10
+
 /* The difference in count between left and right IR sensors 
  * (over the integration period) that we would like to
 *  achieve with fine alignment. */
@@ -55,9 +58,23 @@
  * GLOBAL VARIABLES
  */
 static unsigned int gFineAlignmentCount;
+static unsigned int gLeftCount;
+static unsigned int gRightCount;
 
 /* The queue that this state uses */
 extern xQueueHandle xHomeEventQueue;
+
+/*
+ * STATIC FUNCTIONS
+ */
+
+/* Do a fine integration */
+static HomeEventType doFineIntegration (void)
+{
+    countIrDetector (INTEGRATION_PERIOD_FINE_ALIGNMENT_SECS * 100, NULL, &gRightCount, NULL, &gLeftCount);
+    
+    return HOME_FINE_INTEGRATION_DONE_EVENT;
+}
 
 /*
  * STATIC FUNCTIONS: EVENT HANDLERS
@@ -77,21 +94,47 @@ extern xQueueHandle xHomeEventQueue;
  */
 static void eventHomeFineIntegrationDone (HomeState *pState)
 {
+    HomeEvent event;
     portBASE_TYPE xStatus;
+    int leftMinusRight;
 
     ASSERT_PARAM (pState != PNULL, 0);
 
-    /* TODO: something with the results */
-    
-    gFineAlignmentCount++;
-    if (gFineAlignmentCount > MAX_COUNT_FINE_ALIGNMENT)
-    {
-        HomeEvent event;
-        event.type = HOME_FINE_ALIGNMENT_FAILED_EVENT;
-        xStatus = xQueueSend (xHomeEventQueue, &event, 0);
+    event.type = HOME_FINE_ALIGNMENT_FAILED_EVENT;
 
-        ASSERT_PARAM (xStatus == pdPASS, (unsigned long) xStatus);
+    leftMinusRight = gLeftCount - gRightCount;
+    
+    if (abs (leftMinusRight) < THRESHOLD_FINE_ALIGNMENT)
+    {
+        event.type = HOME_FINE_ALIGNMENT_DONE_EVENT;
     }
+    else
+    {
+        gFineAlignmentCount++;
+        if (gFineAlignmentCount <= MAX_COUNT_FINE_ALIGNMENT)
+        {
+            int turnAngle = TURN_ANGLE_DEGREES;
+            
+            if (leftMinusRight < 0)
+            {
+                turnAngle = -turnAngle;                
+            }
+            
+            /* Turn */
+            if (turn (turnAngle))
+            {
+                /* Do another fine integration */
+                event.type = doFineIntegration();
+            }
+            else
+            {
+                event.type = HOME_ROUGH_ALIGNMENT_FAILED_EVENT;
+            }
+        }
+    }
+    
+    xStatus = xQueueSend (xHomeEventQueue, &event, 0);
+    ASSERT_PARAM (xStatus == pdPASS, (unsigned long) xStatus);        
 }
 
 /*
@@ -100,6 +143,7 @@ static void eventHomeFineIntegrationDone (HomeState *pState)
 
 void transitionToHomeFineAlignment (HomeState *pState)
 {
+    HomeEvent event;
     portBASE_TYPE xStatus;
 
     /* Fill in default handlers and name first */
@@ -122,17 +166,18 @@ void transitionToHomeFineAlignment (HomeState *pState)
 #if MAX_ENTRIES_FINE_ALIGNMENT > 0
     if (pState->countFineAlignmentEntries > MAX_ENTRIES_FINE_ALIGNMENT)
     {
-        HomeEvent event;
         event.type = HOME_FINE_ALIGNMENT_FAILED_EVENT;
-        xStatus = xQueueSend (xHomeEventQueue, &event, 0);
-        
-        ASSERT_PARAM (xStatus == pdPASS, (unsigned long) xStatus);
     }
     else
     {
 #endif        
-        /* TODO: start a fine integration */
+        /* Do a fine integration */
+        event.type = doFineIntegration();
+
 #if MAX_ENTRIES_FINE_ALIGNMENT > 0
     }
 #endif
+
+    xStatus = xQueueSend (xHomeEventQueue, &event, 0);        
+    ASSERT_PARAM (xStatus == pdPASS, (unsigned long) xStatus);
 }

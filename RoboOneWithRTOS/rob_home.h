@@ -16,15 +16,12 @@
 typedef enum HomeEventTypeTag
 {
     HOME_START_EVENT,
-    HOME_ROUGH_INTEGRATION_START_EVENT,
     HOME_ROUGH_INTEGRATION_DONE_EVENT,
     HOME_ROUGH_ALIGNMENT_DONE_EVENT,
     HOME_ROUGH_ALIGNMENT_FAILED_EVENT,
-    HOME_FINE_INTEGRATION_START_EVENT,
     HOME_FINE_INTEGRATION_DONE_EVENT,
     HOME_FINE_ALIGNMENT_DONE_EVENT,
     HOME_FINE_ALIGNMENT_FAILED_EVENT,
-    HOME_TRAVEL_INTEGRATION_START_EVENT,
     HOME_TRAVEL_INTEGRATION_DONE_EVENT,
     HOME_TRAVEL_ALIGNMENT_FAILED_EVENT,
     HOME_STOP_EVENT,
@@ -38,3 +35,8 @@ typedef struct HomeEventTag
 } HomeEvent;
 
 void vTaskHome (void *pvParameters);
+
+/*
+ * FUNCTION PROTOTYPES
+ */
+void countIrDetector (int period10ms, unsigned int * pCountFront, unsigned int * pCountRight, unsigned int * pCountBack, unsigned int * pCountLeft);

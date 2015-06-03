@@ -18,7 +18,7 @@
 #include <rob_home_state_fine_alignment.h>
 #include <rob_home_state_stop.h>
 
-#include <rob_motion.h> /* For stopNow() */
+#include <rob_motion.h> /* For stopNow() and turn() */
 
 #include <FreeRTOS.h>
 #include <queue.h>
@@ -32,6 +32,10 @@
  * the left and right IR sensors
  * for a rough integration */
 #define INTEGRATION_PERIOD_ROUGH_ALIGNMENT_SECS 10
+
+/* The tolerance within which two adjacent detectors
+ * can be considered to be the same. */
+#define SIMILARITY_TOLERANCE  10
 
 /* The difference in count between left and right IR sensors 
  * (over the integration period) that we would like to
@@ -55,9 +59,107 @@
  * GLOBAL VARIABLES
  */
 static unsigned int gRoughAlignmentCount;
+static unsigned int gLeftCount;
+static unsigned int gFrontCount;
+static unsigned int gRightCount;
+static unsigned int gBackCount;
 
  /* The queue that this state uses */
 extern xQueueHandle xHomeEventQueue;
+
+/*
+ * STATIC FUNCTIONS
+ */
+
+/* Do a rough integration */
+static HomeEventType doRoughIntegration (void)
+{
+    countIrDetector (INTEGRATION_PERIOD_ROUGH_ALIGNMENT_SECS * 100, &gFrontCount, &gRightCount, &gBackCount, &gLeftCount);
+    
+    return HOME_ROUGH_INTEGRATION_DONE_EVENT;
+}
+
+/* Given a list, of length numMembers, fill in a second list of the same length
+ * as an index of the order of the items in the first list, largest item in position 0. */
+static void getListOrder (unsigned int *pList, unsigned int numMembers, unsigned char *pOrderList)
+{
+    unsigned int x;
+    unsigned int tmpInt;
+    unsigned char tmpChar;
+    unsigned int * pItem;
+    unsigned int * pItemList;
+    unsigned char * pOrder;
+
+    ASSERT_PARAM (pList != NULL, 0);
+    ASSERT_PARAM (pOrderList != NULL, 0);
+    
+    pOrder = pOrderList;
+    for (x = 0; x < numMembers; x++)
+    {
+        *pOrder = x;
+        pOrder++;
+    }
+
+    pItemList = RobMalloc (numMembers * sizeof (*pList));
+    ASSERT_PARAM (pItemList != NULL, 0);
+    memcpy (pItemList, pList, numMembers * sizeof (*pList));
+    
+    pItem = pItemList;
+    pOrder = pOrderList;
+    
+    for (x = 0; x < (numMembers - 1); x++)
+    {
+        if (*(pItem + 1) > *pItem)
+        {
+            tmpInt = *pItem;
+            *pItem = *(pItem + 1);
+            *(pItem + 1) = tmpInt;
+            
+            tmpChar = *pOrder;
+            *pOrder = *(pOrder + 1);
+            *(pOrder + 1) = tmpChar;
+            
+            x = 0;
+            pItem = pItemList;
+            pOrder = pOrderList;
+        }
+        else
+        {            
+            pItem++;
+            pOrder++;
+        }
+    }
+}
+
+/* Find the strongest of the four directions relative to our current position in degrees. */
+static int findStrongest (unsigned int countFront, unsigned int countRight, unsigned int countBack, unsigned int countLeft)
+{
+    int angleArray [] = {0, 45, 90, 135, 180, -135, -90, -45};
+    unsigned char x;
+    unsigned int count[4];
+    unsigned char order[4];
+    
+    count[0] = countFront;
+    count[1] = countRight;
+    count[2] = countBack;
+    count[3] = countLeft;
+    
+    /* Get the order of the counts in order[], largest first */
+    getListOrder (&(count[0]), sizeof (count) / sizeof (count[0]), &(order[0]));
+    ASSERT_PARAM (order[0] < (sizeof (count) / sizeof (count[0])), order[0]);
+    
+    /* Find the angle from that */
+    x = order[0] * 2;
+    
+    /* If the top two are adjacent and similar, go half way */
+    if (((order[0]++ == order[1]) || (order[1]++ == order[0])) &&
+        ((count[order[0]] - count[order[1]]) < SIMILARITY_TOLERANCE))
+    {
+        x++;
+    }
+    
+    return angleArray[x];
+}
 
 /*
  * STATIC FUNCTIONS: EVENT HANDLERS
@@ -80,21 +182,45 @@ extern xQueueHandle xHomeEventQueue;
  */
 static void eventHomeRoughIntegrationDone (HomeState *pState)
 {
+    HomeEvent event;
     portBASE_TYPE xStatus;
 
     ASSERT_PARAM (pState != PNULL, 0);
 
-    /* TODO: something with the results */
-    
-    gRoughAlignmentCount++;
-    if (gRoughAlignmentCount > MAX_COUNT_ROUGH_ALIGNMENT)
+    event.type = HOME_ROUGH_ALIGNMENT_FAILED_EVENT;
+
+    /* Check the results */
+    if ((gFrontCount >= gLeftCount) &&
+        (gFrontCount >= gRightCount) &&
+        (gFrontCount > THRESHOLD_ROUGH_ALIGNMENT))
     {
-        HomeEvent event;
-        event.type = HOME_ROUGH_ALIGNMENT_FAILED_EVENT;
-        xStatus = xQueueSend (xHomeEventQueue, &event, 0);
-        
-        ASSERT_PARAM (xStatus == pdPASS, (unsigned long) xStatus);
+        event.type = HOME_ROUGH_ALIGNMENT_DONE_EVENT;
     }
+    else
+    {
+        gRoughAlignmentCount++;
+        if (gRoughAlignmentCount <= MAX_COUNT_ROUGH_ALIGNMENT)
+        {
+            int turnAngle;
+            
+            /* Determine the direction to turn */
+            turnAngle = findStrongest (gFrontCount, gRightCount, gBackCount, gLeftCount);
+            
+            /* Turn */
+            if (turn (turnAngle))
+            {
+                /* Do another rough integration */
+                event.type = doRoughIntegration();
+            }
+            else
+            {                
+                event.type = HOME_ROUGH_ALIGNMENT_FAILED_EVENT;                
+            }        
+        }
+    }    
+
+    xStatus = xQueueSend (xHomeEventQueue, &event, 0);
+    ASSERT_PARAM (xStatus == pdPASS, (unsigned long) xStatus);
 }
 
 /*
@@ -103,6 +229,7 @@ static void eventHomeRoughIntegrationDone (HomeState *pState)
 
 void transitionToHomeRoughAlignment (HomeState *pState)
 {
+    HomeEvent event;
     portBASE_TYPE xStatus;
     
     /* Fill in default handlers and name first */
@@ -125,17 +252,18 @@ void transitionToHomeRoughAlignment (HomeState *pState)
  #if MAX_ENTRIES_ROUGH_ALIGNMENT > 0
     if (pState->countRoughAlignmentEntries > MAX_ENTRIES_ROUGH_ALIGNMENT)
     {
-        HomeEvent event;
         event.type = HOME_ROUGH_ALIGNMENT_FAILED_EVENT;
-        xStatus = xQueueSend (xHomeEventQueue, &event, 0);
-        
-        ASSERT_PARAM (xStatus == pdPASS, (unsigned long) xStatus);
     }
     else
     {   
 #endif
-        /* TODO: start a rough integration */
+        /* Do a rough integration */
+        event.type = doRoughIntegration();
+                
 #if MAX_ENTRIES_ROUGH_ALIGNMENT > 0
     }
 #endif
+
+    xStatus = xQueueSend (xHomeEventQueue, &event, 0);        
+    ASSERT_PARAM (xStatus == pdPASS, (unsigned long) xStatus);
  }
