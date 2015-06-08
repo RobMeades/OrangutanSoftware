@@ -74,7 +74,7 @@ extern xQueueHandle xHomeEventQueue;
  */
 
 /* Do a travel integration */
-static HomeEventType doTravelIntegration (void)
+static HomeEvent doTravelIntegration (void)
 {
     /* Do a travel integration */
     countIrDetector (INTEGRATION_PERIOD_TRAVEL_SECS * 100, NULL, &gRightCount, NULL, &gLeftCount);
@@ -106,12 +106,10 @@ static HomeEventType doTravelIntegration (void)
  */
 static void eventHomeTravelIntegrationDone (HomeState *pState)
 {
-    HomeEvent event;
+    HomeEvent event = HOME_TRAVEL_ALIGNMENT_FAILED_EVENT;
     portBASE_TYPE xStatus;
 
     ASSERT_PARAM (pState != PNULL, 0);
-
-    event.type = HOME_TRAVEL_ALIGNMENT_FAILED_EVENT;
 
     if (abs (gLeftCount - gRightCount) <= THRESHOLD_TRAVEL)
     {
@@ -139,11 +137,7 @@ static void eventHomeTravelIntegrationDone (HomeState *pState)
         {
             if (move (HOME_SPEED, gTweakLeft, gTweakRight))
             {
-                event.type = doTravelIntegration();
-            }
-            else
-            {
-                event.type = HOME_TRAVEL_ALIGNMENT_FAILED_EVENT;
+                event = doTravelIntegration();
             }
         }
     }    
@@ -158,8 +152,8 @@ static void eventHomeTravelIntegrationDone (HomeState *pState)
 
 void transitionToHomeTravel (HomeState *pState)
 {
+    HomeEvent event = HOME_TRAVEL_ALIGNMENT_FAILED_EVENT;
     portBASE_TYPE xStatus;
-    HomeEvent event;
 
     /* Fill in default handlers and name first */
     defaultImplementation (pState);
@@ -181,7 +175,7 @@ void transitionToHomeTravel (HomeState *pState)
 #if MAX_ENTRIES_TRAVEL > 0
     if (pState->countTravelEntries > MAX_ENTRIES_TRAVEL)
     {
-        event.type = HOME_TRAVEL_ALIGNMENT_FAILED_EVENT;
+        /* Leave event as failed */;
     }
     else
     {
@@ -189,11 +183,7 @@ void transitionToHomeTravel (HomeState *pState)
         /* Start moving */
         if (move (HOME_SPEED, gTweakLeft, gTweakRight))
         {
-            event.type = doTravelIntegration();
-        }
-        else
-        {        
-            event.type = HOME_TRAVEL_ALIGNMENT_FAILED_EVENT;
+            event = doTravelIntegration();
         }
 
 #if MAX_ENTRIES_TRAVEL > 0

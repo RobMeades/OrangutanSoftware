@@ -69,7 +69,7 @@ extern xQueueHandle xHomeEventQueue;
  */
 
 /* Do a fine integration */
-static HomeEventType doFineIntegration (void)
+static HomeEvent doFineIntegration (void)
 {
     countIrDetector (INTEGRATION_PERIOD_FINE_ALIGNMENT_SECS * 100, NULL, &gRightCount, NULL, &gLeftCount);
     
@@ -94,19 +94,17 @@ static HomeEventType doFineIntegration (void)
  */
 static void eventHomeFineIntegrationDone (HomeState *pState)
 {
-    HomeEvent event;
+    HomeEvent event = HOME_FINE_ALIGNMENT_FAILED_EVENT;
     portBASE_TYPE xStatus;
     int leftMinusRight;
 
     ASSERT_PARAM (pState != PNULL, 0);
 
-    event.type = HOME_FINE_ALIGNMENT_FAILED_EVENT;
-
     leftMinusRight = gLeftCount - gRightCount;
     
     if (abs (leftMinusRight) < THRESHOLD_FINE_ALIGNMENT)
     {
-        event.type = HOME_FINE_ALIGNMENT_DONE_EVENT;
+        event = HOME_FINE_ALIGNMENT_DONE_EVENT;
     }
     else
     {
@@ -124,11 +122,7 @@ static void eventHomeFineIntegrationDone (HomeState *pState)
             if (turn (turnAngle))
             {
                 /* Do another fine integration */
-                event.type = doFineIntegration();
-            }
-            else
-            {
-                event.type = HOME_ROUGH_ALIGNMENT_FAILED_EVENT;
+                event = doFineIntegration();
             }
         }
     }
@@ -166,13 +160,13 @@ void transitionToHomeFineAlignment (HomeState *pState)
 #if MAX_ENTRIES_FINE_ALIGNMENT > 0
     if (pState->countFineAlignmentEntries > MAX_ENTRIES_FINE_ALIGNMENT)
     {
-        event.type = HOME_FINE_ALIGNMENT_FAILED_EVENT;
+        event = HOME_FINE_ALIGNMENT_FAILED_EVENT;
     }
     else
     {
 #endif        
         /* Do a fine integration */
-        event.type = doFineIntegration();
+        event = doFineIntegration();
 
 #if MAX_ENTRIES_FINE_ALIGNMENT > 0
     }

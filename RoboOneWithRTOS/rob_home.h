@@ -13,7 +13,7 @@
  */
 
 /* The types of events that can occur */
-typedef enum HomeEventTypeTag
+typedef enum HomeEventTag
 {
     HOME_START_EVENT,
     HOME_ROUGH_INTEGRATION_DONE_EVENT,
@@ -26,15 +26,9 @@ typedef enum HomeEventTypeTag
     HOME_TRAVEL_ALIGNMENT_FAILED_EVENT,
     HOME_STOP_EVENT,
     MAX_NUM_HOME_EVENTS
-} HomeEventType;    
+} HomeEvent;    
   
- /* A buffer containing a state machine event */
-typedef struct HomeEventTag
-{
-    HomeEventType type;
-} HomeEvent;
-
-void vTaskHome (void *pvParameters);
+ void vTaskHome (void *pvParameters);
 
 /*
  * FUNCTION PROTOTYPES

@@ -133,8 +133,7 @@ void vTaskProcessing (void *pvParameters)
                         {
                             if (uxQueueMessagesWaiting (xHomeEventQueue) < HOME_EVENT_QUEUE_SIZE)
                             {
-                                HomeEvent event;
-                                event.type = HOME_START_EVENT;
+                                HomeEvent event = HOME_START_EVENT;
                                 xStatus = xQueueSend (xHomeEventQueue, &event, 0);
                             }
                             else

@@ -114,74 +114,65 @@ void vTaskHome (void *pvParameters)
 
         ASSERT_STRING (xStatus == pdPASS, "Failed to receive from home event queue.");
 
-        success = false; /* Assume failure */
+        success = true; /* Assume success */
 
         /* Now call the indicated event */
-        switch (event.type)
+        switch (event)
         {
             case HOME_START_EVENT:
             {
                 eventHomeStartOrangutan (&gHomeContext);
-                success = true;
             }
             break;
             case HOME_ROUGH_INTEGRATION_DONE_EVENT:
             {
                 eventHomeRoughIntegrationDoneOrangutan (&gHomeContext);
-                success = true;
             }
             break;
             case HOME_ROUGH_ALIGNMENT_DONE_EVENT:
             {
                 eventHomeRoughAlignmentDoneOrangutan (&gHomeContext);
-                success = true;
             }
             break;
             case HOME_ROUGH_ALIGNMENT_FAILED_EVENT:
             {
                 eventHomeRoughAlignmentFailedOrangutan (&gHomeContext);
-                success = true;
             }
             break;
             case HOME_FINE_INTEGRATION_DONE_EVENT:
             {
                 eventHomeFineIntegrationDoneOrangutan (&gHomeContext);
-                success = true;
             }
             break;
             case HOME_FINE_ALIGNMENT_DONE_EVENT:
             {
                 eventHomeFineAlignmentDoneOrangutan (&gHomeContext);
-                success = true;
             }
             break;
             case HOME_FINE_ALIGNMENT_FAILED_EVENT:
             {
                 eventHomeFineAlignmentFailedOrangutan (&gHomeContext);
-                success = true;
             }
             break;
             case HOME_TRAVEL_INTEGRATION_DONE_EVENT:
             {
                 eventHomeTravelIntegrationDoneOrangutan (&gHomeContext);
-                success = true;
             }
             break;
             case HOME_TRAVEL_ALIGNMENT_FAILED_EVENT:
             {
                 eventHomeTravelAlignmentFailedOrangutan (&gHomeContext);
-                success = true;
             }
             break;
             case HOME_STOP_EVENT:
             {
                 eventHomeStopOrangutan (&gHomeContext);
-                success = true;
             }
             break;
             default:
             {
-                ASSERT_ALWAYS_PARAM (event.type);   
+                success = false;
+                ASSERT_ALWAYS_PARAM (event);   
             }
             break;
         }

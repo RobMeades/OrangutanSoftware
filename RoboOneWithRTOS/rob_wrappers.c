@@ -22,7 +22,32 @@
 
 #define ASSERT_TUNE "!L16 V8 dc#"
 
+#define LCD_COL_MAX 15
+#define LCD_ROW_MAX 3
+
+/* - GLOBALS -------------------------------------------------------------------------- */
+
+/* Need this to manage wrapping on the LCD display as the native Pololu C functions don't do that */
+static unsigned int gCursorPosCol = 0;
+static unsigned int gCursorPosRow = 0;
+
 /* - STATIC FUNCTIONS ----------------------------------------------------------------- */
+
+/* Move the cursor on the LCD display on, wrapping as necessary */
+void moveCursorOn (int numChars)
+{
+    gCursorPosCol++;
+    if (gCursorPosCol > LCD_COL_MAX)
+    {
+        gCursorPosCol = 0;
+        gCursorPosRow++;
+        if (gCursorPosRow > LCD_ROW_MAX)
+        {
+            gCursorPosRow = 0;
+        }
+    }
+    lcd_goto_xy (gCursorPosCol, gCursorPosRow);
+}
 
 /* - PUBLIC FUNCTIONS ----------------------------------------------------------------- */
 
@@ -133,6 +158,8 @@ void rob_clear (void)
 {
     vTaskSuspendAll();
     {
+        gCursorPosCol = 0;
+        gCursorPosRow = 0;
         clear();
     }
     xTaskResumeAll();
@@ -212,6 +239,7 @@ void rob_print_character (char c)
     vTaskSuspendAll();
     {
         print_character (c);
+        moveCursorOn (1);
     }
     xTaskResumeAll();
 }
@@ -220,7 +248,12 @@ void rob_print (const char * pStr)
 {
     vTaskSuspendAll();
     {
-        print (pStr);
+        while (*pStr != 0)
+        {
+            rob_print_character (*pStr);
+            pStr++;
+        }
+        
     }
     xTaskResumeAll();
 }
@@ -229,25 +262,56 @@ void rob_print_from_program_space (const char * pStr)
 {
     vTaskSuspendAll();
     {
-        print_from_program_space (pStr);
+	    char c;
+	    while ((c = pgm_read_byte (pStr)) != 0)
+	    {
+    	    rob_print_character (c);
+    	    pStr++;
+	    }
     }
     xTaskResumeAll();
 }
 
+/* This function use to just call the Pololu print_long() function
+ * but that doesn't cope with line wrap */
 void rob_print_long (long value)
 {
     vTaskSuspendAll();
     {
-        print_long (value);
+        if (value < 0)
+        {
+            value = -value;
+            rob_print_character ('-'); // print the minus sign
+        }
+        rob_print_unsigned_long ((unsigned long) value);
     }
     xTaskResumeAll();
 }
 
+/* This function use to just call the Pololu print_unsigned_long() function
+ * but that doesn't cope with line wrap */
 void rob_print_unsigned_long (unsigned long value)
 {
     vTaskSuspendAll();
     {
-        print_unsigned_long (value);
+        unsigned char str[10];
+        unsigned char i = 10;
+
+        unsigned char digit;
+
+        do
+        {
+            digit = value;
+            value /= 10;
+            digit -= value * 10;
+            str[--i] = '0' + (unsigned char)digit;
+        }
+        while (value != 0);
+
+        for(; i < 10; i++)
+        {
+            rob_print_character (str[i]);            
+        }
     }
     xTaskResumeAll();
 }
@@ -257,6 +321,8 @@ void rob_lcd_goto_xy (int col, int row)
     vTaskSuspendAll();
     {
         lcd_goto_xy (col, row);
+        gCursorPosCol = col;
+        gCursorPosRow = row;
     }
     xTaskResumeAll();
 }

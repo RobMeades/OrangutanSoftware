@@ -72,7 +72,7 @@ extern xQueueHandle xHomeEventQueue;
  */
 
 /* Do a rough integration */
-static HomeEventType doRoughIntegration (void)
+static HomeEvent doRoughIntegration (void)
 {
     countIrDetector (INTEGRATION_PERIOD_ROUGH_ALIGNMENT_SECS * 100, &gFrontCount, &gRightCount, &gBackCount, &gLeftCount);
     
@@ -182,19 +182,17 @@ static int findStrongest (unsigned int countFront, unsigned int countRight, unsi
  */
 static void eventHomeRoughIntegrationDone (HomeState *pState)
 {
-    HomeEvent event;
+    HomeEvent event = HOME_ROUGH_ALIGNMENT_FAILED_EVENT;
     portBASE_TYPE xStatus;
 
     ASSERT_PARAM (pState != PNULL, 0);
-
-    event.type = HOME_ROUGH_ALIGNMENT_FAILED_EVENT;
 
     /* Check the results */
     if ((gFrontCount >= gLeftCount) &&
         (gFrontCount >= gRightCount) &&
         (gFrontCount > THRESHOLD_ROUGH_ALIGNMENT))
     {
-        event.type = HOME_ROUGH_ALIGNMENT_DONE_EVENT;
+        event = HOME_ROUGH_ALIGNMENT_DONE_EVENT;
     }
     else
     {
@@ -210,12 +208,8 @@ static void eventHomeRoughIntegrationDone (HomeState *pState)
             if (turn (turnAngle))
             {
                 /* Do another rough integration */
-                event.type = doRoughIntegration();
+                event = doRoughIntegration();
             }
-            else
-            {                
-                event.type = HOME_ROUGH_ALIGNMENT_FAILED_EVENT;                
-            }        
         }
     }    
 
@@ -252,13 +246,13 @@ void transitionToHomeRoughAlignment (HomeState *pState)
  #if MAX_ENTRIES_ROUGH_ALIGNMENT > 0
     if (pState->countRoughAlignmentEntries > MAX_ENTRIES_ROUGH_ALIGNMENT)
     {
-        event.type = HOME_ROUGH_ALIGNMENT_FAILED_EVENT;
+        event = HOME_ROUGH_ALIGNMENT_FAILED_EVENT;
     }
     else
     {   
 #endif
         /* Do a rough integration */
-        event.type = doRoughIntegration();
+        event = doRoughIntegration();
                 
 #if MAX_ENTRIES_ROUGH_ALIGNMENT > 0
     }
