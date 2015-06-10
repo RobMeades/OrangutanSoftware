@@ -234,6 +234,12 @@ void rob_wait_serial_send_buffer_empty_usb_comm ()
     xTaskResumeAll();
 }
 
+void rob_print_character_no_suspend (char c)
+{
+    print_character (c);
+    moveCursorOn (1);    
+}
+
 void rob_print_character (char c)
 {
     vTaskSuspendAll();
@@ -250,7 +256,7 @@ void rob_print (const char * pStr)
     {
         while (*pStr != 0)
         {
-            rob_print_character (*pStr);
+            rob_print_character_no_suspend (*pStr);
             pStr++;
         }
         
@@ -265,7 +271,7 @@ void rob_print_from_program_space (const char * pStr)
 	    char c;
 	    while ((c = pgm_read_byte (pStr)) != 0)
 	    {
-    	    rob_print_character (c);
+    	    rob_print_character_no_suspend (c);
     	    pStr++;
 	    }
     }
@@ -281,7 +287,7 @@ void rob_print_long (long value)
         if (value < 0)
         {
             value = -value;
-            rob_print_character ('-'); // print the minus sign
+            rob_print_character_no_suspend ('-'); // print the minus sign
         }
         rob_print_unsigned_long ((unsigned long) value);
     }
@@ -310,7 +316,7 @@ void rob_print_unsigned_long (unsigned long value)
 
         for(; i < 10; i++)
         {
-            rob_print_character (str[i]);            
+            rob_print_character_no_suspend (str[i]);            
         }
     }
     xTaskResumeAll();

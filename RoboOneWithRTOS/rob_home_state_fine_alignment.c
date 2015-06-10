@@ -119,7 +119,7 @@ static void eventHomeFineIntegrationDone (HomeState *pState)
             }
             
             /* Turn */
-            if (turn (turnAngle))
+            if (turn (-turnAngle))  /* negative 'cos we're reversing to the charger */
             {
                 /* Do another fine integration */
                 event = doFineIntegration();

@@ -59,10 +59,6 @@ void countIrDetector (int period10ms, unsigned int * pCountFront, unsigned int *
 {
     int x;
     
-    if (pCountLeft != NULL)
-    {
-        *pCountLeft = 0 ;       
-    }
     if (pCountFront != NULL)
     {
         *pCountFront = 0;
@@ -75,23 +71,27 @@ void countIrDetector (int period10ms, unsigned int * pCountFront, unsigned int *
     {
         *pCountBack = 0;
     }
+    if (pCountLeft != NULL)
+    {
+        *pCountLeft = 0 ;
+    }
     for (x = 0; x < period10ms; x++)
     {
-        if (pCountLeft != NULL && is_digital_input_high (IR_DETECTOR_LEFT_PIN))
-        {
-            (*pCountLeft)++;
-        }
-        if (pCountFront != NULL && is_digital_input_high (IR_DETECTOR_FRONT_PIN))
+        if (pCountFront != NULL && !is_digital_input_high (IR_DETECTOR_FRONT_PIN))
         {
             (*pCountFront)++;
         }
-        if (pCountRight != NULL && is_digital_input_high (IR_DETECTOR_RIGHT_PIN))
+        if (pCountRight != NULL && !is_digital_input_high (IR_DETECTOR_RIGHT_PIN))
         {            
             (*pCountRight)++;
         }
-        if (pCountBack != NULL && is_digital_input_high (IR_DETECTOR_BACK_PIN))
+        if (pCountBack != NULL && !is_digital_input_high (IR_DETECTOR_BACK_PIN))
         {
             (*pCountBack)++;
+        }
+        if (pCountLeft != NULL && !is_digital_input_high (IR_DETECTOR_LEFT_PIN))
+        {
+            (*pCountLeft)++;
         }
         vTaskDelay (1 / portTICK_RATE_MS);
     }    
@@ -121,6 +121,7 @@ void vTaskHome (void *pvParameters)
         {
             case HOME_START_EVENT:
             {
+                sendSerialString (OK_STRING, sizeof (OK_STRING));
                 eventHomeStartOrangutan (&gHomeContext);
             }
             break;

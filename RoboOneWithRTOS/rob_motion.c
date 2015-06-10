@@ -14,6 +14,10 @@
 #include <rob_comms.h>
 #include <rob_motion.h>
 
+#include <rob_home_state_machine.h>
+#include <rob_home_state_machine_events.h>
+#include <rob_home.h>
+
 #include <FreeRTOS.h>
 #include <task.h>
 #include <queue.h>
@@ -23,10 +27,15 @@
 #define METRES_TO_TIME_FACTOR 7
 #define CM_S_TO_O_UNITS_FACTOR 3
 #define MOTOR1_TO_MOTOR2_OFFSET 5 /* Positive if MOTOR2 (right) is weaker than MOTOR1 (left) */
+#define TURN_SPEED_O_UNITS 80
+#define TIME_PER_DEGREE_10MS 2 /* TODO: calibrate this */
 
 /* - GLOBALS -------------------------------------------------------------------------- */
 
 static int gSetSpeedOUnits = MINIMUM_USEFUL_SPEED_O_UNITS;
+static int gLastSpeedOUnits = 0;
+static int gLastTweakLeft = 0;
+static int gLastTweakRight = 0;
 
 /* - STATIC FUNCTIONS ----------------------------------------------------------------- */
 
@@ -115,28 +124,28 @@ static bool setSpeed (unsigned int speedCmS)
 /* Move forwards or backwards a given distance */
 static bool moveDistance (unsigned int distanceM, bool isForwards)
 {
-    int speedOUnits = gSetSpeedOUnits;
     int time10ms;
 
-    time10ms = (distanceM / speedOUnits) * 100 * METRES_TO_TIME_FACTOR;
+    gLastSpeedOUnits = gSetSpeedOUnits;
+    time10ms = (distanceM / gLastSpeedOUnits) * 100 * METRES_TO_TIME_FACTOR;
 
     if (!isForwards)
     {
-        speedOUnits = -speedOUnits;
+        gLastSpeedOUnits = -gLastSpeedOUnits;
     }
 
     rob_print_from_program_space (PSTR ("~"));
     rob_print_long (time10ms / 100);
     rob_print_from_program_space (PSTR (" s @"));
-    rob_print_long (speedOUnits / CM_S_TO_O_UNITS_FACTOR);
+    rob_print_long (gLastSpeedOUnits / CM_S_TO_O_UNITS_FACTOR);
     rob_print_from_program_space (PSTR (" cm/s"));
     rob_print_from_program_space (PSTR (" ("));
-    rob_print_long (speedOUnits);
+    rob_print_long (gLastSpeedOUnits);
     rob_print_from_program_space (PSTR (" )"));
 
     /* TODO fix this (1's and 2's swapped) */
-    x2_set_motor (MOTOR1, ACCEL_DRIVE, motor2Speed (speedOUnits));
-    x2_set_motor (MOTOR2, ACCEL_DRIVE, motor1Speed (speedOUnits));
+    x2_set_motor (MOTOR1, ACCEL_DRIVE, motor2Speed (gLastSpeedOUnits));
+    x2_set_motor (MOTOR2, ACCEL_DRIVE, motor1Speed (gLastSpeedOUnits));
 
     vTaskDelay (time10ms / portTICK_RATE_MS);
 
@@ -151,10 +160,14 @@ static bool moveDistance (unsigned int distanceM, bool isForwards)
  * or right if required. */
 bool move (int speedOUnits, int tweakLeft, int tweakRight)
 {
-    rob_print_long (speedOUnits / CM_S_TO_O_UNITS_FACTOR);
+    gLastSpeedOUnits = speedOUnits;
+    gLastTweakLeft = tweakLeft;
+    gLastTweakRight = tweakRight;
+    
+    rob_print_long (gLastSpeedOUnits / CM_S_TO_O_UNITS_FACTOR);
     rob_print_from_program_space (PSTR (" cm/s"));
     rob_print_from_program_space (PSTR (" ("));
-    rob_print_long (speedOUnits);
+    rob_print_long (gLastSpeedOUnits);
     rob_print_from_program_space (PSTR (" )"));
     rob_print_long (tweakLeft);
     rob_print_from_program_space (PSTR ("L "));
@@ -162,8 +175,8 @@ bool move (int speedOUnits, int tweakLeft, int tweakRight)
     rob_print_from_program_space (PSTR ("R"));
 
     /* TODO fix this (1's and 2's swapped) */
-    x2_set_motor (MOTOR1, ACCEL_DRIVE, motor2Speed (speedOUnits + tweakLeft));
-    x2_set_motor (MOTOR2, ACCEL_DRIVE, motor1Speed (speedOUnits + tweakRight));
+    x2_set_motor (MOTOR1, ACCEL_DRIVE, motor2Speed (gLastSpeedOUnits + gLastTweakLeft));
+    x2_set_motor (MOTOR2, ACCEL_DRIVE, motor1Speed (gLastSpeedOUnits + gLastTweakRight));
 
     return true;
 }
@@ -171,6 +184,10 @@ bool move (int speedOUnits, int tweakLeft, int tweakRight)
 /* Stop dead */
 bool stopNow (void)
 {
+    gLastSpeedOUnits = 0;
+    gLastTweakLeft = 0;
+    gLastTweakRight = 0;
+    
     rob_print_from_program_space (PSTR ("STOP."));
     x2_set_motor (MOTOR1, BRAKE_LOW, 0);
     x2_set_motor (MOTOR2, BRAKE_LOW, 0);
@@ -178,17 +195,54 @@ bool stopNow (void)
     return true;
 }
 
-/* Turn (left or right) */
+/* Turn (left or right), stopping first and resuming previous movement afterwards */
 bool turn (int degrees)
 {
+    int turnSpeed = TURN_SPEED_O_UNITS;
+    
     rob_print_long (degrees);
     rob_print_from_program_space (PSTR (" TURN."));
+
+    x2_set_motor (MOTOR1, BRAKE_LOW, 0);
+    x2_set_motor (MOTOR2, BRAKE_LOW, 0);
+    
+    /* Make it a positive number and max 359 degrees */
+    degrees = (degrees + 360) % 360;
+    
+    /* Turn the other way if it's more than 180 degrees */
+    if (turnSpeed > 180)
+    {
+        turnSpeed = -turnSpeed;
+        degrees = 360 - degrees;
+    }
+    
+    /* TODO fix this (1's and 2's swapped) */
+    x2_set_motor (MOTOR1, ACCEL_DRIVE, motor2Speed (-turnSpeed));
+    x2_set_motor (MOTOR2, ACCEL_DRIVE, motor1Speed (turnSpeed));
+    
+    /* Wait for a while, depending on the number of degrees */
+    vTaskDelay ((TIME_PER_DEGREE_10MS * degrees) / portTICK_RATE_MS);
+
+    if (gLastSpeedOUnits > 0)
+    {
+        /* TODO fix this (1's and 2's swapped) */
+        x2_set_motor (MOTOR1, ACCEL_DRIVE, motor2Speed (gLastSpeedOUnits + gLastTweakLeft));
+        x2_set_motor (MOTOR2, ACCEL_DRIVE, motor1Speed (gLastSpeedOUnits + gLastTweakRight));        
+    }
+    else
+    {
+        x2_set_motor (MOTOR1, BRAKE_LOW, 0);
+        x2_set_motor (MOTOR2, BRAKE_LOW, 0);        
+    }
 
     return true;
 }
 
 /* The queue that the motion control task uses */
 extern xQueueHandle xMotionCommandQueue;
+
+/* The queue that the homing task uses (in case we need to stop it) */
+extern xQueueHandle xHomeEventQueue;
 
 /* The Motion control task */
 void vTaskMotion (void *pvParameters)
@@ -275,12 +329,13 @@ void vTaskMotion (void *pvParameters)
             break;
             case 'S': /* Stop */
             {
+                HomeEvent event = HOME_STOP_EVENT;
+                
                 success = stopNow();
-            }
-            break;
-            case 'H': /* Home */
-            {
-                rob_print_from_program_space (PSTR ("TODO."));
+                
+                /* Also stop the home state machine in case it is running */
+                xStatus = xQueueSend (xHomeEventQueue, &event, 0);
+                ASSERT_PARAM (xStatus == pdPASS, (unsigned long) xStatus);
             }
             break;
             case 'I': /* Info? */

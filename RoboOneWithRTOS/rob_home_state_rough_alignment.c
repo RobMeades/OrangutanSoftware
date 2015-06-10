@@ -204,8 +204,18 @@ static void eventHomeRoughIntegrationDone (HomeState *pState)
             /* Determine the direction to turn */
             turnAngle = findStrongest (gFrontCount, gRightCount, gBackCount, gLeftCount);
             
+            rob_print_from_program_space (PSTR ("RA: "));
+            rob_print_unsigned_long (gFrontCount);
+            rob_print_from_program_space (PSTR ("/"));
+            rob_print_unsigned_long (gRightCount);
+            rob_print_from_program_space (PSTR ("/"));
+            rob_print_unsigned_long (gBackCount);
+            rob_print_from_program_space (PSTR ("/"));
+            rob_print_unsigned_long (gLeftCount);
+            rob_print_from_program_space (PSTR (":"));
+            rob_print_long (turnAngle);
             /* Turn */
-            if (turn (turnAngle))
+            if (turn (-turnAngle))  /* negative 'cos we're reversing to the charger */
             {
                 /* Do another rough integration */
                 event = doRoughIntegration();
@@ -240,7 +250,7 @@ void transitionToHomeRoughAlignment (HomeState *pState)
     
     /* Do any entry actions */
     stopNow(); /* Just in case we were moving before */
-    gRoughAlignmentCount = 0;
+    gRoughAlignmentCount = 0;    
     pState->countRoughAlignmentEntries++;
 
  #if MAX_ENTRIES_ROUGH_ALIGNMENT > 0

@@ -67,6 +67,8 @@ wait "~]$"
 :alreadyloggedin
 statusbox "Deleting file on device..." messageBoxTitle
 sendln deleteFileOnDevice
+wait "remove"
+sendln 'y'
 wait "~]$"
 ;Start zmodem receive on the other end
 statusbox "Starting Zmodem on Pi..." messageBoxTitle

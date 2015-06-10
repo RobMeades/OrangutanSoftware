@@ -31,8 +31,8 @@
 /* The maximum we allow the left or right motors to be tweaked by */
 #define MAX_TWEAK    20
 
-/* The speed at which we attempt to travel home */
-#define HOME_SPEED   MINIMUM_USEFUL_SPEED_O_UNITS + MAX_TWEAK
+/* The speed at which we attempt to travel home (remembering that we reverse to the charger) */
+#define HOME_SPEED   -(MINIMUM_USEFUL_SPEED_O_UNITS + MAX_TWEAK)
 
 /* The integration period over which we
  * measure the left and right IR sensors
@@ -135,7 +135,7 @@ static void eventHomeTravelIntegrationDone (HomeState *pState)
         
         if (gTravelAlignmentCount <= MAX_COUNT_TRAVEL_ALIGNMENT)
         {
-            if (move (HOME_SPEED, gTweakLeft, gTweakRight))
+            if (move (HOME_SPEED, -gTweakLeft, -gTweakRight)) /* negative 'cos we're reversing to the charger */
             {
                 event = doTravelIntegration();
             }
@@ -181,7 +181,7 @@ void transitionToHomeTravel (HomeState *pState)
     {
 #endif
         /* Start moving */
-        if (move (HOME_SPEED, gTweakLeft, gTweakRight))
+        if (move (HOME_SPEED, -gTweakLeft, -gTweakRight)) /* negative 'cos we're reversing to the charger */
         {
             event = doTravelIntegration();
         }
